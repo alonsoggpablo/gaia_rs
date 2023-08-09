@@ -8,8 +8,9 @@ def fetch_and_store_collections():
     collections=connection.list_collection_ids()
     for collection in collections:
         OpenEOCollection.objects.get_or_create(
-                        collection_id=collection,
+                        collection=collection,
                         bands=connection.describe_collection(collection)['cube:dimensions']['bands']['values'],
+                        bands_description=connection.describe_collection(collection)['summaries']['eo:bands'],
                      )
 
 

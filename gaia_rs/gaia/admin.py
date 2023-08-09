@@ -2,7 +2,7 @@ from django.contrib.gis import admin
 
 # Register your models here.
 
-from .models import WorldBorder, OpenEOCollection, OpenEODataCube
+from .models import WorldBorder, OpenEOCollection, OpenEODataCube, OpenEOCalculation
 
 admin.site.register(WorldBorder,admin.GISModelAdmin)
 
@@ -17,3 +17,5 @@ class OpenEODataCubeAdmin(admin.GISModelAdmin):
     actions = [process_datacube]
 
 admin.site.register(OpenEODataCube, OpenEODataCubeAdmin)
+
+admin.site.register(OpenEOCalculation, admin.GISModelAdmin)

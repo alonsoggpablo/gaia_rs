@@ -26,11 +26,12 @@ class WorldBorder(models.Model):
     def __str__(self):
         return self.name
 class OpenEOCollection(models.Model):
-    collection_id = models.CharField(max_length=100, unique=True)
+    collection = models.CharField(max_length=100, unique=True)
     bands=models.JSONField()
+    bands_description=models.JSONField()
 
     def __str__(self):
-        return self.collection_id
+        return self.collection
 
 class OpenEOCalculation(models.Model):
     collection = models.ForeignKey(OpenEOCollection, on_delete=models.CASCADE)
@@ -46,13 +47,13 @@ class OpenEODataCube(models.Model):
     spatial_extent = models.PolygonField()  # Store the spatial extent as a polygon
     temporal_extent_start = models.DateTimeField()
     temporal_extent_end = models.DateTimeField()
-    bands=models.JSONField()
-    max_cloud_cover=models.FloatField()
-    properties = models.JSONField()
-    north= models.FloatField()
-    south= models.FloatField()
-    east= models.FloatField()
-    west= models.FloatField()
+    bands=models.JSONField(default='[""]')
+    max_cloud_cover=models.FloatField(default=85)
+    properties = models.JSONField(default='[""]')
+    north= models.FloatField(default=0)
+    south= models.FloatField(default=0)
+    east= models.FloatField(default=0)
+    west= models.FloatField(default=0)
     image= models.ImageField(upload_to='images/', null=True, blank=True)
     def save(self, *args, **kwargs):
         self.north=self.spatial_extent.envelope[0][2][1]
@@ -69,7 +70,7 @@ class OpenEODataCube(models.Model):
         connection=openeo.connect('openeo.dataspace.copernicus.eu')
         connection.authenticate_oidc()
         datacube=connection.load_collection(
-            self.collection.collection_id,
+            self.collection.collection,
             bands=self.bands,
             temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
             spatial_extent={'west':self.west,'east':self.east, 'north':self.north, 'south':self.south},
