@@ -1,14 +1,19 @@
 from django.contrib.gis import admin
 
 # Register your models here.
-#register worldborder model
 
-from .models import WorldBorder, Square
+from .models import WorldBorder, OpenEOCollection, OpenEODataCube
 
 admin.site.register(WorldBorder,admin.GISModelAdmin)
 
+admin.site.register(OpenEOCollection, admin.GISModelAdmin)
 
-class SquareAdmin(admin.GISModelAdmin):
-    list_display = ('name', 'north', 'south', 'east', 'west')
+def process_datacube(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.process()
 
-admin.site.register(Square, SquareAdmin)
+class OpenEODataCubeAdmin(admin.GISModelAdmin):
+    list_display = ('calculation', 'name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover')
+    actions = [process_datacube]
+
+admin.site.register(OpenEODataCube, OpenEODataCubeAdmin)

@@ -2,3 +2,5 @@
 /gaia_rs/gaia/migrations/
 gaia_rs/gaia_rs/settings.py
 /gaia_rs/db.sqlite3
+/gaia_rs/job-results.json
+/gaia_rs/openEO.tif
