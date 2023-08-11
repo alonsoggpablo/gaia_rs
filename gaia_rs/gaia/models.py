@@ -25,43 +25,51 @@ class WorldBorder(models.Model):
     # Returns the string representation of the model.
     def __str__(self):
         return self.name
-class OpenEOCollection(models.Model):
-    collection = models.CharField(max_length=100, unique=True)
-    bands=models.JSONField()
-    bands_description=models.JSONField()
+
+
+class Band(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.JSONField()
+    collection = models.CharField(max_length=100)
 
     def __str__(self):
-        return self.collection
+        description_text=""
+        if 'common_name' in self.description:
+            description_text=self.description['common_name']
+        if 'description' in self.description:
+            description_text=description_text+"_"+self.description['description']
+        return self.collection+"_"+self.name+"_"+description_text
 
-class OpenEOCalculation(models.Model):
-    collection = models.ForeignKey(OpenEOCollection, on_delete=models.CASCADE)
-    calculation=models.CharField(max_length=100)
-    result=models.JSONField()
+class DataProduct(models.Model):
+    name=models.CharField(max_length=100)
+    bands = models.ManyToManyField(Band)
+
     def __str__(self):
-        return self.calculation
+        return self.name
 
 
-class OpenEODataCube(models.Model):
-    calculation=models.ForeignKey(OpenEOCalculation, on_delete=models.CASCADE)
+
+class DataCube(models.Model):
     name = models.CharField(max_length=100)
     spatial_extent = models.PolygonField()  # Store the spatial extent as a polygon
     temporal_extent_start = models.DateTimeField()
     temporal_extent_end = models.DateTimeField()
-    bands=models.JSONField(default='[""]')
+    dataproduct=models.ForeignKey(DataProduct, on_delete=models.CASCADE)
+    bands=models.JSONField()
     max_cloud_cover=models.FloatField(default=85)
-    properties = models.JSONField(default='[""]')
     north= models.FloatField(default=0)
     south= models.FloatField(default=0)
     east= models.FloatField(default=0)
     west= models.FloatField(default=0)
     image= models.ImageField(upload_to='images/', null=True, blank=True)
+    job_results=models.JSONField(null=True, blank=True)
     def save(self, *args, **kwargs):
-        self.north=self.spatial_extent.envelope[0][2][1]
-        self.south=self.spatial_extent.envelope[0][0][1]
-        self.east=self.spatial_extent.envelope[0][1][0]
-        self.west=self.spatial_extent.envelope[0][0][0]
-        self.bands=self.calculation.collection.bands
-        super(OpenEODataCube, self).save(*args, **kwargs)
+            self.north=self.spatial_extent.envelope[0][2][1]
+            self.south=self.spatial_extent.envelope[0][0][1]
+            self.east=self.spatial_extent.envelope[0][1][0]
+            self.west=self.spatial_extent.envelope[0][0][0]
+            self.bands=list(self.dataproduct.bands.values_list('name', flat=True))
+            super(DataCube, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -70,8 +78,8 @@ class OpenEODataCube(models.Model):
         connection=openeo.connect('openeo.dataspace.copernicus.eu')
         connection.authenticate_oidc()
         datacube=connection.load_collection(
-            self.collection.collection,
-            bands=self.bands,
+            self.dataproduct.bands.first().collection,
+            bands=list(self.dataproduct.bands.all().values_list('name',flat=True)),
             temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
             spatial_extent={'west':self.west,'east':self.east, 'north':self.north, 'south':self.south},
             max_cloud_cover=self.max_cloud_cover,
@@ -88,4 +96,6 @@ class OpenEODataCube(models.Model):
         with open('openEO.tif', 'rb') as f:
             image_file=File(f)
             self.image.save('openEO.tif', image_file)
+        with open('job_results.json', 'r') as f:
+            self.job_results=File(f)
         self.save()
