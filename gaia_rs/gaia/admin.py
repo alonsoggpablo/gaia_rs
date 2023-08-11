@@ -12,7 +12,7 @@ def process_datacube(modeladmin, request, queryset):
         datacube.process()
 
 class OpenEODataCubeAdmin(admin.GISModelAdmin):
-    exclude = ('bands','job_results')
+    exclude = ('bands',)
     list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover')
     actions = [process_datacube]
 

@@ -1,3 +1,5 @@
+import json
+
 import openeo
 from django.core.files import File
 from django.db import models
@@ -62,7 +64,6 @@ class DataCube(models.Model):
     east= models.FloatField(default=0)
     west= models.FloatField(default=0)
     image= models.ImageField(upload_to='images/', null=True, blank=True)
-    job_results=models.JSONField(null=True, blank=True)
     def save(self, *args, **kwargs):
             self.north=self.spatial_extent.envelope[0][2][1]
             self.south=self.spatial_extent.envelope[0][0][1]
@@ -96,6 +97,4 @@ class DataCube(models.Model):
         with open('openEO.tif', 'rb') as f:
             image_file=File(f)
             self.image.save('openEO.tif', image_file)
-        with open('job_results.json', 'r') as f:
-            self.job_results=File(f)
         self.save()
