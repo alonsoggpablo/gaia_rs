@@ -13,6 +13,48 @@ from django.core.files import File
 from django.db import models
 from django.contrib.gis.db import models
 
+def generate_raster(self,ds,xarray,param):
+    for t in range(0, ds.dims['t']):
+        date = str(ds.isel(t=t).t.dt.day.astype(str))[-10:]
+        plt.figure(figsize=(10, 8))
+        plt.imshow(xarray.isel(t=t), cmap='RdYlGn', vmin=-1, vmax=1)  # Adjust colormap and limits
+        plt.colorbar(label='BSI')
+        plt.title(f'BSI Intensity Map  - {date}')
+        # Render the plot to an in-memory PNG image
+        canvas = FigureCanvasAgg(plt.gcf())
+        canvas.draw()
+        # Extract pixel data as a numpy array
+        width, height = canvas.get_width_height()
+        pixel_data = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8).reshape((height, width, 3))
+        # Create GeoTIFF dataset
+        driver = gdal.GetDriverByName('GTiff')
+        output_geotiff = f'bsi_{date}.tif'.replace('-', '_')
+        out_ds = driver.Create(output_geotiff, width, height, 3, gdal.GDT_Byte)
+
+        # Write RGB data to bands
+        for i in range(3):
+            out_ds.GetRasterBand(i + 1).WriteArray(pixel_data[:, :, i])
+
+        # Set geotransform and projection
+        geotransform = (-10, 20 / width, 0, 10, 0, -20 / height)
+        out_ds.SetGeoTransform(geotransform)
+
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)  # Set the coordinate system (EPSG:4326 = WGS84)
+        out_ds.SetProjection(srs.ExportToWkt())
+        # Save and close the GeoTIFF dataset
+        out_ds = None
+
+        geoimage_instance = GeoImage(name=output_geotiff,
+                                     processing_date=datetime.datetime.now(),
+                                     observation_date=date,
+                                     datacube=self)
+
+        with open(output_geotiff, 'rb') as raster_file:
+            geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
+
+        geoimage_instance.save()
+
 class WorldBorder(models.Model):
     # Regular Django fields corresponding to the attributes in the
     # world borders shapefile.
@@ -85,15 +127,31 @@ class DataCube(models.Model):
             self.east=self.spatial_extent.envelope[0][1][0]
             self.west=self.spatial_extent.envelope[0][0][0]
             self.bands=list(self.dataproduct.bands.values_list('name', flat=True))
-            connection = openeo.connect('openeo.dataspace.copernicus.eu')
-            connection.authenticate_oidc()
+            super(DataCube, self).save(*args, **kwargs)
+
+    def get_ncdf(self):
+        connection = openeo.connect('openeo.dataspace.copernicus.eu')
+        connection.authenticate_oidc()
+        try:
+            datacube = connection.load_collection(
+                self.dataproduct.bands.first().collection,
+                bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
+                temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
+                spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
+                max_cloud_cover=self.max_cloud_cover,
+            )
+
+            datacube.download("openEO.nc")
+            with open('openEO.nc', 'rb') as f:
+                ncdfile = File(f)
+                self.ncdfile.save('openEO.nc', ncdfile)
+        except:
             try:
                 datacube = connection.load_collection(
                     self.dataproduct.bands.first().collection,
                     bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
                     temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
                     spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
-                    max_cloud_cover=self.max_cloud_cover,
                 )
 
                 datacube.download("openEO.nc")
@@ -101,22 +159,7 @@ class DataCube(models.Model):
                     ncdfile = File(f)
                     self.ncdfile.save('openEO.nc', ncdfile)
             except:
-                try:
-                    datacube = connection.load_collection(
-                        self.dataproduct.bands.first().collection,
-                        bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
-                        temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
-                        spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
-                    )
-
-                    datacube.download("openEO.nc")
-                    with open('openEO.nc', 'rb') as f:
-                        ncdfile = File(f)
-                        self.ncdfile.save('openEO.nc', ncdfile)
-                except:pass
-
-
-            super(DataCube, self).save(*args, **kwargs)
+                pass
 
     def get_ndvi(self):
         ds = xr.open_dataset(self.ncdfile.path)
@@ -126,50 +169,27 @@ class DataCube(models.Model):
         red = ds['B04']
 
         # Calculate NDVI
-        ndvi = (nir - red) / (nir + red)
+        xarray = (nir - red) / (nir + red)
 
-        # Plot NDVI intensity map
-        for t in range(0, ds.dims['t']):
-            date = str(ds.isel(t=t).t.dt.day.astype(str))[-10:]
-            plt.figure(figsize=(10, 8))
-            plt.imshow(ndvi.isel(t=t), cmap='RdYlGn', vmin=-1, vmax=1)  # Adjust colormap and limits
-            plt.colorbar(label='NDVI')
-            plt.title(f'NDVI Intensity Map  - {date}')
-            # Render the plot to an in-memory PNG image
-            canvas = FigureCanvasAgg(plt.gcf())
-            canvas.draw()
-            # Extract pixel data as a numpy array
-            width, height = canvas.get_width_height()
-            pixel_data = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8).reshape((height, width, 3))
-            # Create GeoTIFF dataset
-            driver = gdal.GetDriverByName('GTiff')
-            output_geotiff = f'ndvi_{date}.tif'.replace('-', '_')
-            out_ds = driver.Create(output_geotiff, width, height, 3, gdal.GDT_Byte)
+        generate_raster(self,ds,xarray,'ndvi')
 
-            # Write RGB data to bands
-            for i in range(3):
-                out_ds.GetRasterBand(i + 1).WriteArray(pixel_data[:, :, i])
 
-            # Set geotransform and projection
-            geotransform = (-10, 20 / width, 0, 10, 0, -20 / height)
-            out_ds.SetGeoTransform(geotransform)
+    def get_bsi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
 
-            srs = osr.SpatialReference()
-            srs.ImportFromEPSG(4326)  # Set the coordinate system (EPSG:4326 = WGS84)
-            out_ds.SetProjection(srs.ExportToWkt())
-            # Save and close the GeoTIFF dataset
-            out_ds = None
+        # Select bands for BSI calculation
+        b08 = ds['B08']
+        b04 = ds['B04']
+        b02 = ds['B02']
+        b11 = ds['B11']
 
-            geoimage_instance=GeoImage(name=output_geotiff,
-                                       processing_date=datetime.datetime.now(),
-                                       observation_date=date,
-                                       datacube=self)
+        # Calculate BSI
+        xarray=((b11+b04)-(b08+b02))/((b11+b04)+(b08+b02))
 
-            with open(output_geotiff, 'rb') as raster_file:
-                geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
+        generate_raster(self,ds,xarray,'bsi')
 
-            geoimage_instance.save()
 
+    #TODO: add get method for all dataproducts. Reconsider scripts field in dataproduct.
 
     def __str__(self):
         return self.name

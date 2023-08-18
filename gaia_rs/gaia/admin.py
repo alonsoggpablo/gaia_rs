@@ -5,15 +5,33 @@ from django.contrib.gis import admin
 from .models import WorldBorder, DataCube, Band, DataProduct, Category, Script, GeoImage
 
 admin.site.register(WorldBorder,admin.GISModelAdmin)
+
+def get_ncdf(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_ncdf()
+
 def get_ndvi(modeladmin, request, queryset):
     for datacube in queryset:
         datacube.get_ndvi()
 
+def get_bsi(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_bsi()
+
 class DataCubeAdmin(admin.GISModelAdmin):
     exclude = ('bands',)
     list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover')
-    actions=[get_ndvi,]
-    #actions = [get_tif,get_ncdf,get_ncdf_no_max_cloud,get_ncdf_cloud_mask]
+    ordering = ('name',)
+    def get_actions(self, request):
+        actions = super(DataCubeAdmin, self).get_actions(request)
+
+        actions['get_ncdf'] = (get_ncdf, 'get_ncdf', 'Get Satellite Data')
+        actions['get_ndvi'] = (get_ndvi, 'get_ndvi', 'Generate NDVI GeoTIFF Files')
+        actions['get_bsi'] = (get_bsi, 'get_bsi', 'Generate BSI GeoTIFF Files')
+
+
+        return actions
+
 
 admin.site.register(DataCube, DataCubeAdmin)
 class BandAdmin(admin.GISModelAdmin):
