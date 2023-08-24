@@ -1,4 +1,8 @@
+import django.contrib.admin
 from django.contrib.gis import admin
+from django.contrib.gis.admin import OSMGeoAdmin
+from django.contrib.gis.db.backends.base import models
+from leaflet.forms.widgets import LeafletWidget
 
 # Register your models here.
 
@@ -18,6 +22,14 @@ def get_bsi(modeladmin, request, queryset):
     for datacube in queryset:
         datacube.get_bsi()
 
+def get_rgb(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_rgb()
+
+def get_ndci(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_ndci()
+
 class DataCubeAdmin(admin.GISModelAdmin):
     exclude = ('bands',)
     list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover')
@@ -28,6 +40,8 @@ class DataCubeAdmin(admin.GISModelAdmin):
         actions['get_ncdf'] = (get_ncdf, 'get_ncdf', 'Get Satellite Data')
         actions['get_ndvi'] = (get_ndvi, 'get_ndvi', 'Generate NDVI GeoTIFF Files')
         actions['get_bsi'] = (get_bsi, 'get_bsi', 'Generate BSI GeoTIFF Files')
+        actions['get_rgb'] = (get_rgb, 'get_rgb', 'Generate RGB Image Files')
+        actions['get_ndci'] = (get_ndci, 'get_ndci', 'Generate NDCI GeoTIFF Files')
 
 
         return actions
@@ -54,15 +68,16 @@ class ScriptAdmin(admin.GISModelAdmin):
     ordering=('script',)
 
 admin.site.register(Script,ScriptAdmin)
-class GeoImageAdmin(admin.GISModelAdmin):
-    exclude = ('name','processing_date','observing_date')
-    list_display = ('name','processing_date','observation_date')
+
+class GeoImageAdmin(OSMGeoAdmin):
+    exclude = ('name','processing_date','observation_date','datacube')
+    list_display = ('name','processing_date','observation_date','raster_file')
     list_filter = ('datacube','name','observation_date',)
     ordering = ('name','observation_date')
-    def display_image(self,obj):
-        return '<img src="%s" width="100" height="100" />' % (obj.image.url)
-    display_image.allow_tags = True
-    display_image.short_description = 'Image'
+
+    def datacube_spatial(self, obj):
+        return obj.datacube.spatial_extent
+
 admin.site.register(GeoImage,GeoImageAdmin)
 
 
