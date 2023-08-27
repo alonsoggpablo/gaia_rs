@@ -1,4 +1,6 @@
 import json
+import os
+
 import rasterio
 from rasterio.plot import show
 from matplotlib.cm import get_cmap
@@ -23,7 +25,8 @@ from PIL import Image
 from skimage import exposure
 import cartopy.crs as ccrs
 import urllib.request
-
+import geopandas
+import osmnx as ox
 def generate_raster_1band(self,ds,xarray,param):
 
     for t in range(0, ds.dims['t']):
@@ -53,6 +56,9 @@ def generate_raster_1band(self,ds,xarray,param):
             geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
 
         geoimage_instance.save()
+        os.remove(output_geotiff)
+
+
 def generate_raster_3band(self,ds,param):
 
     for t in range(0, ds.dims['t']):
@@ -88,6 +94,9 @@ def generate_raster_3band(self,ds,param):
             geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
 
         geoimage_instance.save()
+
+        os.remove(output_geotiff)
+
 
 class WorldBorder(models.Model):
     # Regular Django fields corresponding to the attributes in the
@@ -140,7 +149,10 @@ class DataProduct(models.Model):
     revisit_time=models.IntegerField(default=1)
     spatial_resolution=models.IntegerField(default=10)
     def __str__(self):
-        return self.name
+        return self.category.category+'_'+self.name
+    class Meta:
+        ordering = ['category__category', 'name']
+
 class DataCube(models.Model):
     name = models.CharField(max_length=100)
     spatial_extent = models.PolygonField()  # Store the spatial extent as a polygon
@@ -165,34 +177,20 @@ class DataCube(models.Model):
     def get_ncdf(self):
         connection = openeo.connect('openeo.dataspace.copernicus.eu')
         connection.authenticate_oidc()
-        try:
-            datacube = connection.load_collection(
-                self.dataproduct.bands.first().collection,
-                bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
-                temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
-                spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
-                max_cloud_cover=self.max_cloud_cover,
-            )
+        datacube = connection.load_collection(
+            self.dataproduct.bands.first().collection,
+            bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
+            temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
+            spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
+            max_cloud_cover=self.max_cloud_cover,
+        )
 
-            datacube.download("openEO.nc")
-            with open('openEO.nc', 'rb') as f:
-                ncdfile = File(f)
-                self.ncdfile.save('openEO.nc', ncdfile)
-        except:
-            try:
-                datacube = connection.load_collection(
-                    self.dataproduct.bands.first().collection,
-                    bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
-                    temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
-                    spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
-                )
+        datacube.download("openEO.nc")
+        with open('openEO.nc', 'rb') as f:
+            ncdfile = File(f)
+            self.ncdfile.save('openEO.nc', ncdfile)
+            self.save()
 
-                datacube.download("openEO.nc")
-                with open('openEO.nc', 'rb') as f:
-                    ncdfile = File(f)
-                    self.ncdfile.save('openEO.nc', ncdfile)
-            except:
-                pass
     def get_ndvi(self):
         ds = xr.open_dataset(self.ncdfile.path)
 

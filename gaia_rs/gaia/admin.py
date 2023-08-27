@@ -31,17 +31,28 @@ def get_ndci(modeladmin, request, queryset):
         datacube.get_ndci()
 
 class DataCubeAdmin(admin.GISModelAdmin):
-    exclude = ('bands',)
+    exclude = ('bands','north','south','east','west','ncdfile')
     list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover')
     ordering = ('name',)
     def get_actions(self, request):
         actions = super(DataCubeAdmin, self).get_actions(request)
 
         actions['get_ncdf'] = (get_ncdf, 'get_ncdf', 'Get Satellite Data')
-        actions['get_ndvi'] = (get_ndvi, 'get_ndvi', 'Generate NDVI GeoTIFF Files')
-        actions['get_bsi'] = (get_bsi, 'get_bsi', 'Generate BSI GeoTIFF Files')
-        actions['get_rgb'] = (get_rgb, 'get_rgb', 'Generate RGB Image Files')
-        actions['get_ndci'] = (get_ndci, 'get_ndci', 'Generate NDCI GeoTIFF Files')
+        #actions['get_fire'] = (get_bsi, 'get_fire', 'Disaster Fire raster files')
+        actions['get_bsi'] = (get_bsi, 'get_bsi', 'Land BSI raster files')
+        #actions['get_ndwi'] = (get_ndwi, 'get_ndwi', 'Marine NDWI raster files')
+        actions['get_rgb'] = (get_rgb, 'get_rgb', 'RGB raster files')
+        #actions['get_ndsi'] = (get_ndsi, 'get_ndsi', 'Snow NDSI  raster files')
+        #actions['get_evi'] = (get_evi, 'get_evi', 'Vegetation EVI  raster files')
+        #actions['get_msi'] = (get_msi, 'get_msi', 'Vegetation MSI  raster files')
+        actions['get_ndci'] = (get_ndci, 'get_ndci', 'Vegetation NDCI  raster files')
+        actions['get_ndvi'] = (get_ndvi, 'get_ndvi', 'Vegetation NDVI raster files')
+
+        #TODO: add get method for all dataproducts. Reconsider scripts field in dataproduct.
+        #TODO: fill spatial and timeresolutions in all dataproducts
+        #TODO: detect partial images
+
+
 
 
         return actions
@@ -57,7 +68,7 @@ admin.site.register(Band,BandAdmin)
 class DataProductAdmin(admin.GISModelAdmin):
     list_display = ('name', 'category','script')
     list_filter = ('category','script')
-    ordering = ('category','name',)
+    ordering = ('category__category','name',)
 
 admin.site.register(DataProduct,DataProductAdmin)
 class CategoryAdmin(admin.GISModelAdmin):
@@ -72,7 +83,7 @@ admin.site.register(Script,ScriptAdmin)
 class GeoImageAdmin(OSMGeoAdmin):
     exclude = ('name','processing_date','observation_date','datacube')
     list_display = ('name','processing_date','observation_date','raster_file')
-    list_filter = ('datacube','name','observation_date',)
+    list_filter = ('datacube','observation_date','processing_date','name')
     ordering = ('name','observation_date')
 
     def datacube_spatial(self, obj):
