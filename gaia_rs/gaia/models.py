@@ -21,6 +21,20 @@ def remove_brackets(value):
     except:
         return value
 
+def generate_timeseries_plot(self,df,param):
+    plt.title(param+ '_' + self.name)
+    plt.xlabel('Date')
+    df.index = pd.to_datetime(df.index).strftime('%Y-%m-%d')
+    plt.xticks(rotation=90)
+    plt.grid(True)
+    df[param].plot(marker='o', color='green', linestyle='-', figsize=(20, 10))
+    buffer = BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    self.plot_image.save(param+'.png', File(buffer), save=False)
+    # self.timeseries=df.to_dict(orient='split')
+    self.save()
+
 def generate_raster_1band(self,ds,xarray,param):
 
     for t in range(0, ds.dims['t']):
@@ -199,23 +213,11 @@ class DataCube(models.Model):
         # Select bands (NIR and Red) for NDVI calculation
         nir = ds['B08']
         red = ds['B04']
-
         # Calculate NDVI
         xarray = (nir - red) / (nir + red)
         df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
         df['ndvi'] = (df['B08'] - df['B04']) / (df['B04'] + df['B08'])
-        plt.title('NDVI_'+self.name)
-        plt.xlabel('Date')
-        df.index=pd.to_datetime(df.index).strftime('%Y-%m-%d')
-        plt.xticks(rotation=90)
-        plt.grid(True)
-        df['ndvi'].plot(marker='o', color='green', linestyle='-', figsize=(20, 10))
-        buffer=BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
-        self.plot_image.save('ndvi.png', File(buffer), save=False)
-        #self.timeseries=df.to_dict(orient='split')
-        self.save()
+        generate_timeseries_plot(self,df,'ndvi')
         generate_raster_1band(self,ds,xarray,'ndvi')
     def get_rgb(self):
         ds = xr.open_dataset(self.ncdfile.path)
