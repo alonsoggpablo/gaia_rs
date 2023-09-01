@@ -1,32 +1,26 @@
+import datetime
 import json
 import os
-
-import rasterio
-from rasterio.plot import show
-from matplotlib.cm import get_cmap
-from matplotlib.colors import Normalize
-from rasterio.enums import ColorInterp
-from rasterio.transform import from_origin
-import cv2
-import matplotlib.pyplot as plt
-import datetime
-from pathlib import Path
-from django.contrib.gis.gdal import GDALRaster
-from osgeo import gdal, osr
-import numpy as np
-from matplotlib.backends.backend_agg import FigureCanvasAgg
-import xarray as xr
-import openeo
-from django.contrib.gis.geos import Point
-from django.core.files import File
-from django.db import models
-from django.contrib.gis.db import models
-from PIL import Image
-from skimage import exposure
-import cartopy.crs as ccrs
-import urllib.request
+from io import BytesIO
 import geopandas
-import osmnx as ox
+import matplotlib.pyplot as plt
+import numpy as np
+import openeo
+import pandas as pd
+import rasterio
+import shapely
+import xarray as xr
+from django.contrib.gis.db import models
+from django.core.files import File
+from rasterio.transform import from_origin
+
+
+def remove_brackets(value):
+    try:
+        return value[0][0]
+    except:
+        return value
+
 def generate_raster_1band(self,ds,xarray,param):
 
     for t in range(0, ds.dims['t']):
@@ -35,10 +29,11 @@ def generate_raster_1band(self,ds,xarray,param):
         east = self.east
         north = self.north
         south = self.south
+        name = self.name.lower()
         lon_resolution=(east-west)/ds.dims['x']
         lat_resolution=(north-south)/ds.dims['y']
         transform= from_origin(west, north, lon_resolution, lat_resolution)
-        output_geotiff = f'{param}_{date}.tif'.replace('-', '_')
+        output_geotiff = f'{name}_{param}_{date}.tif'.replace('-', '_')
         data = xarray.isel(t=t)
         clipped_data=np.clip(data,0,1)
         intensity_map=np.nan_to_num(clipped_data,nan=0)
@@ -58,7 +53,6 @@ def generate_raster_1band(self,ds,xarray,param):
         geoimage_instance.save()
         os.remove(output_geotiff)
 
-
 def generate_raster_3band(self,ds,param):
 
     for t in range(0, ds.dims['t']):
@@ -67,6 +61,7 @@ def generate_raster_3band(self,ds,param):
         east = self.east
         north = self.north
         south = self.south
+        name = self.name.lower()
         lon_resolution=(east-west)/ds.dims['x']
         lat_resolution=(north-south)/ds.dims['y']
         transform= from_origin(west, north, lon_resolution, lat_resolution)
@@ -78,7 +73,7 @@ def generate_raster_3band(self,ds,param):
         normalized_green = (green - green.min()) / (green.max() - green.min())
         normalized_blue = (blue - blue.min()) / (blue.max() - blue.min())
 
-        output_geotiff = f'{param}_{date}.tif'.replace('-', '_')
+        output_geotiff = f'{name}_{param}_{date}.tif'.replace('-', '_')
         rgb_array=np.stack([normalized_red, normalized_green, normalized_blue], axis=0)
         crs='+proj=latlong'
         with rasterio.open(output_geotiff, 'w', driver='GTiff', height=red.sizes['y'], width=red.sizes['x'],
@@ -96,7 +91,6 @@ def generate_raster_3band(self,ds,param):
         geoimage_instance.save()
 
         os.remove(output_geotiff)
-
 
 class WorldBorder(models.Model):
     # Regular Django fields corresponding to the attributes in the
@@ -146,8 +140,6 @@ class DataProduct(models.Model):
     name=models.CharField(max_length=100)
     description=models.TextField()
     bands = models.ManyToManyField(Band)
-    revisit_time=models.IntegerField(default=1)
-    spatial_resolution=models.IntegerField(default=10)
     def __str__(self):
         return self.category.category+'_'+self.name
     class Meta:
@@ -166,6 +158,9 @@ class DataCube(models.Model):
     east= models.FloatField(default=0)
     west= models.FloatField(default=0)
     ncdfile=models.FileField(upload_to='ncdf/', null=True, blank=True)
+    timeseries=models.JSONField(null=True, blank=True)
+    plot_image=models.ImageField(upload_to='plot_images/', null=True, blank=True)
+
 
     def save(self, *args, **kwargs):
             self.north=self.spatial_extent.envelope[0][2][1]
@@ -186,6 +181,13 @@ class DataCube(models.Model):
         )
 
         datacube.download("openEO.nc")
+        self.timeseries={}
+        for band in list(self.dataproduct.bands.all().values_list('name', flat=True)):
+            datacube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(self.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
+            with open('timeseries_'+band+'.json') as f:
+                self.timeseries.update({band:json.load(f)})
+                self.save()
+                os.remove('timeseries_'+band+'.json')
         with open('openEO.nc', 'rb') as f:
             ncdfile = File(f)
             self.ncdfile.save('openEO.nc', ncdfile)
@@ -200,7 +202,20 @@ class DataCube(models.Model):
 
         # Calculate NDVI
         xarray = (nir - red) / (nir + red)
-
+        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['ndvi'] = (df['B08'] - df['B04']) / (df['B04'] + df['B08'])
+        plt.title('NDVI_'+self.name)
+        plt.xlabel('Date')
+        df.index=pd.to_datetime(df.index).strftime('%Y-%m-%d')
+        plt.xticks(rotation=90)
+        plt.grid(True)
+        df['ndvi'].plot(marker='o', color='green', linestyle='-', figsize=(20, 10))
+        buffer=BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        self.plot_image.save('ndvi.png', File(buffer), save=False)
+        #self.timeseries=df.to_dict(orient='split')
+        self.save()
         generate_raster_1band(self,ds,xarray,'ndvi')
     def get_rgb(self):
         ds = xr.open_dataset(self.ncdfile.path)
@@ -226,8 +241,79 @@ class DataCube(models.Model):
         ndci=(b05-b04)/(b05+b04)
         generate_raster_1band(self,ds,ndci,'ndci')
 
+    def get_msi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b08= ds['B08']
+        b11= ds['B11']
+        msi=b11/b08
+        generate_raster_1band(self,ds,msi,'msi')
 
-    #TODO: add get method for all dataproducts. Reconsider scripts field in dataproduct.
+    def get_evi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b08= ds['B08']
+        b04= ds['B04']
+        b02= ds['B02']
+        evi=2.5*((b08-b04)/(b08+6*b04-7.5*b02+1))
+        generate_raster_1band(self,ds,evi,'evi')
+
+    def get_ndsi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b03= ds['B03']
+        b11= ds['B11']
+        ndsi=(b03-b11)/(b03+b11)
+        generate_raster_1band(self,ds,ndsi,'ndsi')
+
+    def get_ndwi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b03= ds['B03']
+        b08= ds['B08']
+        ndwi=(b03-b08)/(b03+b08)
+        generate_raster_1band(self,ds,ndwi,'ndwi')
+
+    def get_bais(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b04= ds['B04']
+        b06= ds['B06']
+        b12= ds['B12']
+        b8A= ds['B8A']
+        b07= ds['B07']
+
+        bais=(1-((b06*b07*b8A)/b04)**0.5)*((b12-b8A)/((b12+b8A)**0.5)+1)
+        generate_raster_1band(self,ds,bais,'bais')
+
+    def get_apa(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b02= ds['B02']
+        b03= ds['B03']
+        b04= ds['B04']
+        b05= ds['B05']
+        b08= ds['B08']
+        b8A= ds['B8A']
+        b11= ds['B11']
+
+        moisture=(b08-b11)/(b08+b11)
+        ndwi=(b03-b08)/(b03+b08)
+        water_bodies=(ndwi-moisture)/(ndwi+moisture)
+        water_plants=(b05-b04)/(b05+b04)
+        ndgr=b03/b04
+        nir2=b04+(b11-b04)*((832.8 - 664.6) / (1613.7 - 664.6))
+        fai=b08-nir2
+        bratio=(b03-0.175)/(0.39-0.175)
+        generate_raster_1band(self,ds,water_plants,'water_plants')
+        generate_raster_1band(self,ds,water_bodies,'water_bodies')
+        generate_raster_1band(self,ds,moisture,'moisture')
+        generate_raster_3band(self,ds,'rgb')
+
+    def get_ndyi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        b02= ds['B02']
+        b03= ds['B03']
+        ndyi=(b03-b02)/(b03+b02)
+        generate_raster_1band(self,ds,ndyi,'ndyi')
+
+
+
+
 
     def __str__(self):
         return self.name

@@ -1,12 +1,9 @@
-import django.contrib.admin
 from django.contrib.gis import admin
 from django.contrib.gis.admin import OSMGeoAdmin
-from django.contrib.gis.db.backends.base import models
-from leaflet.forms.widgets import LeafletWidget
-
-# Register your models here.
 
 from .models import WorldBorder, DataCube, Band, DataProduct, Category, Script, GeoImage
+
+# Register your models here.
 
 admin.site.register(WorldBorder,admin.GISModelAdmin)
 
@@ -30,30 +27,52 @@ def get_ndci(modeladmin, request, queryset):
     for datacube in queryset:
         datacube.get_ndci()
 
+def get_msi(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_msi()
+
+def get_evi(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_evi()
+
+def get_ndsi(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_ndsi()
+
+def get_ndwi(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_ndwi()
+
+def get_bais(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_bais()
+
+def get_apa(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_apa()
+def get_ndyi(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.get_ndyi()
+
 class DataCubeAdmin(admin.GISModelAdmin):
-    exclude = ('bands','north','south','east','west','ncdfile')
-    list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover')
+    exclude = ('bands','north','south','east','west','ncdfile','timeseries')
+    list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover','plot_image')
     ordering = ('name',)
     def get_actions(self, request):
         actions = super(DataCubeAdmin, self).get_actions(request)
 
         actions['get_ncdf'] = (get_ncdf, 'get_ncdf', 'Get Satellite Data')
-        #actions['get_fire'] = (get_bsi, 'get_fire', 'Disaster Fire raster files')
+        actions['get_bais'] = (get_bais, 'get_bais', 'Disaster Fire raster files')
         actions['get_bsi'] = (get_bsi, 'get_bsi', 'Land BSI raster files')
-        #actions['get_ndwi'] = (get_ndwi, 'get_ndwi', 'Marine NDWI raster files')
+        actions['get_ndwi'] = (get_ndwi, 'get_ndwi', 'Marine NDWI raster files')
+        actions['get_apa'] = (get_ndvi, 'get_apa', 'Marine Algae raster files')
         actions['get_rgb'] = (get_rgb, 'get_rgb', 'RGB raster files')
-        #actions['get_ndsi'] = (get_ndsi, 'get_ndsi', 'Snow NDSI  raster files')
-        #actions['get_evi'] = (get_evi, 'get_evi', 'Vegetation EVI  raster files')
-        #actions['get_msi'] = (get_msi, 'get_msi', 'Vegetation MSI  raster files')
+        actions['get_ndsi'] = (get_ndsi, 'get_ndsi', 'Snow NDSI  raster files')
+        actions['get_evi'] = (get_evi, 'get_evi', 'Vegetation EVI  raster files')
+        actions['get_msi'] = (get_msi, 'get_msi', 'Vegetation MSI  raster files')
         actions['get_ndci'] = (get_ndci, 'get_ndci', 'Vegetation NDCI  raster files')
         actions['get_ndvi'] = (get_ndvi, 'get_ndvi', 'Vegetation NDVI raster files')
-
-        #TODO: add get method for all dataproducts. Reconsider scripts field in dataproduct.
-        #TODO: fill spatial and timeresolutions in all dataproducts
-        #TODO: detect partial images
-
-
-
+        actions['get_ndyi'] = (get_ndyi, 'get_ndyi', 'Vegetation NDYI raster files')
 
         return actions
 
@@ -83,7 +102,7 @@ admin.site.register(Script,ScriptAdmin)
 class GeoImageAdmin(OSMGeoAdmin):
     exclude = ('name','processing_date','observation_date','datacube')
     list_display = ('name','processing_date','observation_date','raster_file')
-    list_filter = ('datacube','observation_date','processing_date','name')
+    list_filter = ('datacube','datacube__dataproduct','processing_date','observation_date','name')
     ordering = ('name','observation_date')
 
     def datacube_spatial(self, obj):
