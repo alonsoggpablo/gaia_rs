@@ -1,7 +1,7 @@
 from django.contrib.gis import admin
 from django.contrib.gis.admin import OSMGeoAdmin
 
-from .models import WorldBorder, DataCube, Band, DataProduct, Category, Script, GeoImage
+from .models import WorldBorder, DataCube, Band, DataProduct, Category, Script, GeoImage, MapLayer
 
 # Register your models here.
 
@@ -109,6 +109,8 @@ class GeoImageAdmin(OSMGeoAdmin):
         return obj.datacube.spatial_extent
 
 admin.site.register(GeoImage,GeoImageAdmin)
+
+admin.site.register(MapLayer,admin.GISModelAdmin)
 
 
 

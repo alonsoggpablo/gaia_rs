@@ -1,0 +1,20 @@
+
+{% extends "base.html" %}
+{% block title %}Add a DataCube{% endblock %}
+{% block content %}
+
+<body>
+<h1>Add a DataCube</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Submit">
+</form>
+{% endblock %}
+
+{%block footer%}
+{%endblock%}
+
+
+{%block scripts%}
+{%endblock%}

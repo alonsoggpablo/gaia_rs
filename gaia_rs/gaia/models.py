@@ -234,13 +234,18 @@ class DataCube(models.Model):
 
         # Calculate BSI
         xarray=((b11+b04)-(b08+b02))/((b11+b04)+(b08+b02))
-
+        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['bsi'] = ((df['B11'] + df['B04'])-(df['B08']+df['B02'])) / ((df['B11'] + df['B04'])+(df['B08']+df['B02']))
+        generate_timeseries_plot(self, df, 'bsi')
         generate_raster_1band(self,ds,xarray,'bsi')
     def get_ndci(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b05= ds['B05']
         b04= ds['B04']
         ndci=(b05-b04)/(b05+b04)
+        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['ndci'] = (df['B05'] - df['B04'])/ (df['B05'] + df['B04'])
+        generate_timeseries_plot(self, df, 'ndci')
         generate_raster_1band(self,ds,ndci,'ndci')
 
     def get_msi(self):
@@ -248,6 +253,9 @@ class DataCube(models.Model):
         b08= ds['B08']
         b11= ds['B11']
         msi=b11/b08
+        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['msi'] = df['B11']/ df['B08']
+        generate_timeseries_plot(self, df, 'msi')
         generate_raster_1band(self,ds,msi,'msi')
 
     def get_evi(self):
@@ -256,6 +264,9 @@ class DataCube(models.Model):
         b04= ds['B04']
         b02= ds['B02']
         evi=2.5*((b08-b04)/(b08+6*b04-7.5*b02+1))
+        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['evi'] = 2.5*(df['B08'] - df['B04'])/ (df['B08'] + 6*df['B04']-7.5*df['B02']+1)
+        generate_timeseries_plot(self, df, 'evi')
         generate_raster_1band(self,ds,evi,'evi')
 
     def get_ndsi(self):
@@ -326,6 +337,14 @@ class GeoImage(models.Model):
     observation_date=models.DateField(null=True,blank=True)
     raster_file=models.FileField(upload_to='raster_files',blank=True, null=True)
 
+    def __str__(self):
+        return self.name
+
+class MapLayer(models.Model):
+    name=models.CharField(max_length=100)
+    attribution=models.CharField(max_length=100)
+    description=models.TextField()
+    url=models.URLField()
     def __str__(self):
         return self.name
 

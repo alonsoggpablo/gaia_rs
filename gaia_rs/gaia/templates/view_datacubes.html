@@ -1,0 +1,39 @@
+<html>
+<head>
+<title>WMTS Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+ <!-- Make sure you put this AFTER Leaflet's CSS -->
+ <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+ <!-- Install leaflet-providersESP -->
+	<script src="https://cdn.jsdelivr.net/gh/dieghernan/leaflet-providersESP/dist/leaflet-providersESP.min.js"></script>
+
+
+</head>
+<body>
+<div id="map" style="width:100%; height: 100%"></div>
+<script>
+    var map = L.map('map').setView([40.4166, -3.7038400], 6);
+    // var wmtsLayer = L.tileLayer('{{map_layer.url}}', {
+    //     maxZoom:19,
+    //     attribution: '{{map_layer.attribution}}',
+    //     description:'{{map_layer.description}}'
+    // }).addTo(map);
+    //L.tileLayer.providerESP('IDErioja').addTo(map);
+    L.tileLayer.providerESP('PNOA').addTo(map);
+    L.tileLayer.providerESP('MDT.CurvasNivel').addTo(map);
+    L.tileLayer.providerESP('NombresGeograficos').addTo(map);
+    //L.tileLayer.providerESP('LiDAR').addTo(map);
+    //L.tileLayer.providerESP('Copernicus').addTo(map);
+
+
+
+</script>
+</body>
+</html>
+
+
