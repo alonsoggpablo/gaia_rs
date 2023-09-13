@@ -1,0 +1,101 @@
+<!--{% extends "base.html" %}-->
+{% load render_table from django_tables2 %}
+{% load static %}
+<!--{% load leaflet_tags %}-->
+{% block content %}
+
+<!-- datacube_detail.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{geoimage.datacube.dataproduct.name}}</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css"/>
+    <style>
+        #map {
+
+            height : 800px;
+            width : 100%;
+
+        }
+    </style>
+</head>
+<body>
+<script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+<script src="https://unpkg.com/georaster"></script>
+<script src="https://unpkg.com/chroma-js"></script>
+<script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dieghernan/leaflet-providersESP/dist/leaflet-providersESP.min.js"></script>
+    <script src="https://unpkg.com/geoblaze"></script>
+
+
+<h1>{{geoimage.datacube.dataproduct.name}}</h1>
+<div id="map" style="width: 100%; height: 600px;"></div>
+<script>
+    const center_latitude_float = parseFloat({{center_latitude}}); //convert lat string to number
+    const center_longitude_float = parseFloat({{center_longitude}});
+    var map = L.map('map').setView([center_latitude_float,center_longitude_float ], 10); // Set your initial map view
+
+    var osmUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        osmAttrib = '&copy; <a href="http://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        osm = L.tileLayer(osmUrl, { maxZoom: 18, attribution: osmAttrib })
+
+    var pnoa= L.tileLayer.providerESP('PNOA')
+    var ngeo=L.tileLayer.providerESP('NombresGeograficos')
+    var pnoa_ngeo=L.layerGroup([pnoa,ngeo]);
+
+    var url_to_geotiff_file = "{{geoimage.raster_file.name}}";
+
+    fetch("/media/"+url_to_geotiff_file)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => {
+            parseGeoraster(arrayBuffer).then(georaster => {
+
+                var layer = new GeoRasterLayer({
+                    attribution: "GEBCO & Tom Patterson",
+                    georaster: georaster,
+                    opacity: 0.6,
+                    resolution: 512,
+
+                });
+
+                var pnoa_geo=L.layerGroup([pnoa,layer]).addTo(map);
+                var osm_geo=L.layerGroup([osm,layer]);
+
+                var control=L.control.layers({
+                    'OSM_GeoImage': osm_geo.addTo(map),
+                    'PNOA-GeoImage': pnoa_geo.addTo(map)
+                })
+                control.addTo(map);
+
+                map.fitBounds(layer.getBounds());
+
+map.on('click', e => {
+    const lnglat = [e.latlng.lng, e.latlng.lat];
+    const latlng = [e.latlng.lat, e.latlng.lng];
+    // results is an array, which each item representing a separate band
+    const results = geoblaze.identify(georaster, lnglat);
+    const formattedResults = results.map(result => parseFloat(result.toFixed(2)));
+    // Create a popup with the identification results
+    const popup = L.popup()
+        .setLatLng(latlng)
+        .setContent(`{{geoimage.datacube.dataproduct.name}}:<br>${JSON.stringify(formattedResults)}`)
+        .openOn(map);
+});
+
+                });
+            });
+
+
+
+
+
+
+
+
+</script>
+<!-- Add other fields as needed -->
+</body>
+
+{% endblock %}

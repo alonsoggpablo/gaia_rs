@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+{% load render_table from django_tables2 %}
+
+<!-- datacube_detail.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Datacube Detail</title>
+</head>
+<body>
+    <h1>Datacube Detail</h1>
+     {% render_table datacube_table %}
+    <h1>Datacube GeoImages</h1>
+
+     {% render_table geoimages_table %}
+
+        <h1>Geometry Map</h1>
+    <div id="map" style="width: 100%; height: 600px;"></div>
+    <script>
+        var map = L.map('map').setView([{{center_latitude}}, {{center_longitude}}], 10); // Set your initial map view
+
+         var osmUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            osmAttrib = '&copy; <a href="http://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            osm = L.tileLayer(osmUrl, { maxZoom: 18, attribution: osmAttrib })
+
+        var pnoa= L.tileLayer.providerESP('PNOA').addTo(map);
+        var ngeo=L.tileLayer.providerESP('NombresGeograficos').addTo(map);
+        var pnoa_ngeo=L.layerGroup([pnoa,ngeo]);
+
+        var control=L.control.layers({
+        'OSM': osm.addTo(map),
+        'PNOA': pnoa.addTo(map),
+        'PNOA-NGEO': pnoa_ngeo.addTo(map)
+        })
+        control.addTo(map);
+        var geometryData= {{ datacube.spatial_extent.geojson|safe }};
+        L.geoJSON(geometryData).addTo(map);
+    </script>
+    <!-- Add other fields as needed -->
+</body>
+</html>
+{% endblock %}
+

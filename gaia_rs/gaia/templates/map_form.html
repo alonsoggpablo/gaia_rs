@@ -7,8 +7,12 @@
 <h1>Add a DataCube</h1>
 <form method="post">
     {% csrf_token %}
+       <div class="d-flex justify-content-end">
+            <!-- Bootstrap Button -->
+            <button class="btn btn-primary">Submit</button>
+        </div>
     {{ form.as_p }}
-    <input type="submit" value="Submit">
+
 </form>
 {% endblock %}
 

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'floppyforms',
     'mapwidgets',
     'bootstrap5',
+    'django_tables2',
 
 
 ]

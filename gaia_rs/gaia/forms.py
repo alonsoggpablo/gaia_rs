@@ -14,20 +14,32 @@ class CustomSpatialExtentWidget(forms.Widget):
       <style>
         .map-container {
             width: 100%;
-            height: 400px; /* Adjust the height as needed */
+            height: 600px; /* Adjust the height as needed */
         }
+    
     </style>
     </head>
 <body>
     <div  class="map-container" id="map"></div>
-    <textarea id="id_spatial_extent" class="vSerializedField required" cols="150" rows="10" name="spatial_extent" ></textarea>
+    <textarea id="id_spatial_extent" class="vSerializedField required" cols="150" rows="10" name="spatial_extent" hidden></textarea>
     <script>
         var map = L.map('map').setView([40.4166, -3.7038400], 6);
 
         // Add various layers using leaflet-providersESP
-        L.tileLayer.providerESP('PNOA').addTo(map);
-        L.tileLayer.providerESP('MDT.CurvasNivel').addTo(map);
-        L.tileLayer.providerESP('NombresGeograficos').addTo(map);
+         var osmUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            osmAttrib = '&copy; <a href="http://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            osm = L.tileLayer(osmUrl, { maxZoom: 18, attribution: osmAttrib })
+
+        var pnoa= L.tileLayer.providerESP('PNOA').addTo(map);
+        var ngeo=L.tileLayer.providerESP('NombresGeograficos').addTo(map);
+        var pnoa_ngeo=L.layerGroup([pnoa,ngeo]);
+
+        var control=L.control.layers({
+        'OSM': osm.addTo(map),
+        'PNOA': pnoa.addTo(map),
+        'PNOA-NGEO': pnoa_ngeo.addTo(map)
+        })
+        control.addTo(map);
         
          // Initialize the Leaflet Draw control
     var drawnItems = new L.FeatureGroup();
