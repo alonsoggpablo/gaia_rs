@@ -1,0 +1,9 @@
+<div id="status">-</div>
+<marquee direction="right"
+         behavior="alternate" id="puntos"></marquee>
+
+<span hx-target="#status" hx-get="/get_status/{{record.id}}" hx-trigger="every 10s">
+    </span>
+
+<span hx-target="#puntos" hx-get="/get_puntos/{{record.id}}" hx-trigger="every 10s">
+    </span>

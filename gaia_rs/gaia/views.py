@@ -1,6 +1,6 @@
 import os
 
-from django.http import FileResponse, HttpResponseNotFound
+from django.http import FileResponse, HttpResponseNotFound, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from .models import MapLayer, GeoImage
 from .models import DataCube
@@ -33,10 +33,15 @@ def datacube_detail(request, pk):
     geoimages=GeoImage.objects.filter(datacube=datacube)
     datacube_table=DataCubeDetailTable([datacube])
     geoimages_table=GeoImageTable(datacube=datacube)
+    plot_image=""
+    try:
+        plot_image=datacube.plot_image.url
+    except:
+        pass
     polygon_centroid = datacube.spatial_extent.centroid
     center_latitude=polygon_centroid.y
     center_longitude=polygon_centroid.x
-    return render(request, 'datacube_detail.html', {'geoimages_table':geoimages_table,'datacube_table': datacube_table,'center_latitude':center_latitude,'center_longitude':center_longitude,'datacube':datacube,'geoimages':geoimages})
+    return render(request, 'datacube_detail.html', {'plot_image':plot_image,'geoimages_table':geoimages_table,'datacube_table': datacube_table,'center_latitude':center_latitude,'center_longitude':center_longitude,'datacube':datacube,'geoimages':geoimages})
 
 def raster_file(request,pk):
     geoimage = GeoImage.objects.get(pk=pk)
@@ -47,13 +52,20 @@ def raster_file(request,pk):
 
 def process_datacube(request,pk):
     datacube = DataCube.objects.get(pk=pk)
+    datacube.status='processing'
+    datacube.save()
     datacube.get_ncdf()
-    dataproduct_script=datacube.dataproduct.script
+    dataproduct_script=str(datacube.dataproduct.script)
+    datacube_table=DataCubeDetailTable([datacube])
+    geoimages_table=GeoImageTable(datacube=datacube)
+    polygon_centroid = datacube.spatial_extent.centroid
+    center_latitude = polygon_centroid.y
+    center_longitude = polygon_centroid.x
 
-    func=globals()[dataproduct_script.name]
-    datacube.func()
+    func=getattr(datacube,dataproduct_script)
+    func()
 
-    return render(request, 'datacube_detail.html', {'pk': pk})
+    return render(request, 'datacube_detail.html', {'pk': pk,'datacube_table': datacube_table,'datacube':datacube,'geoimages_table':geoimages_table,'center_latitude':center_latitude,'center_longitude':center_longitude})
 
 
 def serve_geotiff(request, file_name):
@@ -70,5 +82,30 @@ def serve_geotiff(request, file_name):
     # Handle the case where the file doesn't exist
     return HttpResponseNotFound("File not found")
 
+def get_status(request, record_id):
+    # Fetch the updated text for the record with the given ID
+    datacube=DataCube.objects.get(pk=record_id)
+    status=datacube.status
+    return HttpResponse(status)
+
+def get_puntos(request,record_id):
+    datacube=DataCube.objects.get(pk=record_id)
+    status=datacube.status
+    puntos=""
+    if status=='finished' or status=='created' or status=='error' or status=='':
+        puntos=""
+    else:
+        puntos="..."
+
+    return HttpResponse(puntos)
+
+def view_png(request,plot_image):
+    file_path = os.path.join(settings.MEDIA_ROOT, plot_image)
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as file:
+            response = FileResponse(file)
+            return response
+    else:
+        return HttpResponse('File not found', status=404)
 
 

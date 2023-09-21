@@ -13,7 +13,9 @@ urlpatterns = [
     path('process_datacube/<int:pk>/', views.process_datacube, name='process_datacube'),
     path('raster_file/<int:pk>/', views.raster_file, name='raster_file'),
     path('media/raster_files/<str:file_name>/', views.serve_geotiff, name='serve_geotiff'),
-
+    path('get_status/<int:record_id>/', views.get_status, name='get_status'),
+    path('get_puntos/<int:record_id>/', views.get_puntos, name='get_puntos'),
+    path('media/plot_images/<str:plot_image>/', views.view_png, name='view_png'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 {% load render_table from django_tables2 %}
+<script src="https://unpkg.com/htmx.org@1.9.5" integrity="sha384-xcuj3WpfgjlKF+FXhSQFQ0ZNr39ln+hwjN3npfM9VBnUskLolQAcN80McRIVOPuO" crossorigin="anonymous"></script>
 
 <!-- datacube_detail.html -->
 <!DOCTYPE html>
@@ -11,6 +12,9 @@
 <body>
     <h1>Datacube Detail</h1>
      {% render_table datacube_table %}
+
+
+
     <h1>Datacube GeoImages</h1>
 
      {% render_table geoimages_table %}
@@ -38,6 +42,43 @@
         L.geoJSON(geometryData).addTo(map);
     </script>
     <!-- Add other fields as needed -->
+        <h1>TimeSeries</h1>
+<div id="img">
+    <img src="{{plot_image}}" alt="Process Datacube to get Timeseries" width="1000" height="500" onerror="imagenotfound()">
+
+</div>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    function updateTable() {
+        $.ajax({
+            url: '/datacube_detail/{{datacube.id}}',  // Replace with the actual URL
+            type: 'GET',
+            dataType: 'json',
+            success: function (data) {
+                // Re-render the table with the updated data
+                $('#table-container').html(data.html);
+            },
+            error: function (error) {
+                console.error('Error:', error);
+            }
+        });
+    }
+
+    // Call the function to initially load the table
+    updateTable();
+
+    // Set up a timer to refresh the table every 5 seconds (5000 milliseconds)
+    setInterval(updateTable, 10000);
+</script>
+<script>
+    function imagenotfound() {
+        document.getElementById("img").innerHTML = "TimeSeries not available";
+    }
+</script>
+
 </body>
 </html>
 {% endblock %}

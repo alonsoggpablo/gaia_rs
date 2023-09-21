@@ -1,7 +1,7 @@
 import requests
-from gaia.models import Band
 import openeo
 
+from gaia_rs.gaia.models import Band
 
 
 def fetch_and_store_collections():

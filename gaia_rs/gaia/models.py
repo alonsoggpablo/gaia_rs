@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 from io import BytesIO
 import geopandas
 import matplotlib.pyplot as plt
@@ -13,6 +14,7 @@ import xarray as xr
 from django.contrib.gis.db import models
 from django.core.files import File
 from rasterio.transform import from_origin
+
 
 
 def remove_brackets(value):
@@ -174,6 +176,7 @@ class DataCube(models.Model):
     ncdfile=models.FileField(upload_to='ncdf/', null=True, blank=True)
     timeseries=models.JSONField(null=True, blank=True)
     plot_image=models.ImageField(upload_to='plot_images/', null=True, blank=True)
+    status=models.CharField(max_length=100, default='created')
 
 
     def save(self, *args, **kwargs):
@@ -193,8 +196,37 @@ class DataCube(models.Model):
             spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
             max_cloud_cover=self.max_cloud_cover,
         )
+        if self.dataproduct.category.category=='SAR':
+            datacube=datacube.sar_backscatter(coefficient="sigma0-ellipsoid")
+        job = datacube.create_job()
+        job.start_job()
+        outer_break=False
+        self.status="processing"
+        self.save()
+        while True:
+            for line in job.logs():
+                try:
+                    status=json.loads(line.message.split("data=")[1].replace("'",'"'))['status']
+                    print (status)
+                    self.status=status
+                    self.save()
+
+                    if status == 'finished':
+                        self.status=status
+                        self.save()
+                        print('Job finished')
+                        outer_break=True
+                        break
+                except:
+                    pass
+            if outer_break:
+                break
+            time.sleep(10)
+
+
 
         datacube.download("openEO.nc")
+
         self.timeseries={}
         for band in list(self.dataproduct.bands.all().values_list('name', flat=True)):
             datacube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(self.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
@@ -247,7 +279,6 @@ class DataCube(models.Model):
         df['ndci'] = (df['B05'] - df['B04'])/ (df['B05'] + df['B04'])
         generate_timeseries_plot(self, df, 'ndci')
         generate_raster_1band(self,ds,ndci,'ndci')
-
     def get_msi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b08= ds['B08']
@@ -257,7 +288,6 @@ class DataCube(models.Model):
         df['msi'] = df['B11']/ df['B08']
         generate_timeseries_plot(self, df, 'msi')
         generate_raster_1band(self,ds,msi,'msi')
-
     def get_evi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b08= ds['B08']
@@ -268,21 +298,24 @@ class DataCube(models.Model):
         df['evi'] = 2.5*(df['B08'] - df['B04'])/ (df['B08'] + 6*df['B04']-7.5*df['B02']+1)
         generate_timeseries_plot(self, df, 'evi')
         generate_raster_1band(self,ds,evi,'evi')
-
     def get_ndsi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b03= ds['B03']
         b11= ds['B11']
         ndsi=(b03-b11)/(b03+b11)
         generate_raster_1band(self,ds,ndsi,'ndsi')
-
+        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['ndsi'] = (df['B03'] - df['B11'])/ (df['B03'] + df['B11'])
+        generate_timeseries_plot(self, df, 'ndsi')
     def get_ndwi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b03= ds['B03']
         b08= ds['B08']
         ndwi=(b03-b08)/(b03+b08)
         generate_raster_1band(self,ds,ndwi,'ndwi')
-
+        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['ndwi'] = (df['B03'] - df['B08'])/ (df['B03'] + df['B08'])
+        generate_timeseries_plot(self, df, 'ndwi')
     def get_bais(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b04= ds['B04']
@@ -293,7 +326,9 @@ class DataCube(models.Model):
 
         bais=(1-((b06*b07*b8A)/b04)**0.5)*((b12-b8A)/((b12+b8A)**0.5)+1)
         generate_raster_1band(self,ds,bais,'bais')
-
+        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['bais'] = (1-((df['B06']*df['B07']*df['B8A'])/df['B04'])**0.5)*((df['B12']-df['B8A'])/((df['B12']+df['B8A'])**0.5)+1)
+        generate_timeseries_plot(self, df, 'bais')
     def get_apa(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b02= ds['B02']
@@ -316,16 +351,24 @@ class DataCube(models.Model):
         generate_raster_1band(self,ds,water_bodies,'water_bodies')
         generate_raster_1band(self,ds,moisture,'moisture')
         generate_raster_3band(self,ds,'rgb')
-
     def get_ndyi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b02= ds['B02']
         b03= ds['B03']
         ndyi=(b03-b02)/(b03+b02)
         generate_raster_1band(self,ds,ndyi,'ndyi')
-
-
-
+        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['ndyi'] = (df['B03'] - df['B02'])/ (df['B03'] + df['B02'])
+        generate_timeseries_plot(self, df, 'ndyi')
+    def sar_rvi(self):
+        ds = xr.open_dataset(self.ncdfile.path)
+        VV= ds['VV']
+        VH= ds['VH']
+        rvi=(4*VH)/(VV+VH)
+        generate_raster_1band(self,ds,rvi,'rvi')
+        df=pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
+        df['rvi'] = (4*df['VH'])/(df['VV']+df['VH'])
+        generate_timeseries_plot(self, df, 'rvi')
 
 
     def __str__(self):

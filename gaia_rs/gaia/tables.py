@@ -14,6 +14,7 @@ class DataCubeTable(tables.Table):
         model = DataCube
         fields=('name','dataproduct')
         template_name = 'django_tables2/bootstrap4.html'
+        order_by = 'name'
 
 class DataCubeDetailTable(tables.Table):
 
@@ -21,10 +22,17 @@ class DataCubeDetailTable(tables.Table):
         template_name='process_datacube_button.html',
         verbose_name='Process Datacube',  # Optional: Customize the column header
     )
+
+    status=tables.TemplateColumn(
+        template_name ='status.html',
+        verbose_name='Status',  # Optional: Customize the column header
+    )
     class Meta:
         model = DataCube
-        fields=('name','dataproduct','temporal_extent_start','temporal_extent_end','max_cloud_cover')
+        fields=('name','dataproduct','temporal_extent_start','temporal_extent_end','max_cloud_cover','status')
         template_name = 'django_tables2/bootstrap4.html'
+
+
 
 class GeoImageTable(tables.Table):
     raster_file=tables.LinkColumn(
