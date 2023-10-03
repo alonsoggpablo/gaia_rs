@@ -11,10 +11,12 @@ import pandas as pd
 import rasterio
 import shapely
 import xarray as xr
+from celery.signals import task_success
 from django.contrib.gis.db import models
 from django.core.files import File
 from rasterio.transform import from_origin
 
+from .tasks import download_copernicus_results, add
 
 
 def remove_brackets(value):
@@ -198,46 +200,17 @@ class DataCube(models.Model):
         )
         if self.dataproduct.category.category=='SAR':
             datacube=datacube.sar_backscatter(coefficient="sigma0-ellipsoid")
-        job = datacube.create_job()
-        job.start_job()
-        outer_break=False
-        self.status="processing"
+
+
+        job = datacube.execute_batch(output_format='netcdf',format='netcdf')
+        job_id=job.job_id
+        datacube_id=self.id
+        self.status='downloading_file'
         self.save()
-        while True:
-            for line in job.logs():
-                try:
-                    status=json.loads(line.message.split("data=")[1].replace("'",'"'))['status']
-                    print (status)
-                    self.status=status
-                    self.save()
-
-                    if status == 'finished':
-                        self.status=status
-                        self.save()
-                        print('Job finished')
-                        outer_break=True
-                        break
-                except:
-                    pass
-            if outer_break:
-                break
-            time.sleep(10)
+        download_copernicus_results.delay(job_id,datacube_id)
 
 
 
-        datacube.download("openEO.nc")
-
-        self.timeseries={}
-        for band in list(self.dataproduct.bands.all().values_list('name', flat=True)):
-            datacube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(self.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
-            with open('timeseries_'+band+'.json') as f:
-                self.timeseries.update({band:json.load(f)})
-                self.save()
-                os.remove('timeseries_'+band+'.json')
-        with open('openEO.nc', 'rb') as f:
-            ncdfile = File(f)
-            self.ncdfile.save('openEO.nc', ncdfile)
-            self.save()
 
     def get_ndvi(self):
         ds = xr.open_dataset(self.ncdfile.path)
@@ -391,5 +364,20 @@ class MapLayer(models.Model):
     def __str__(self):
         return self.name
 
+@task_success.connect(sender=download_copernicus_results)
+def download_copernicus_task_success_handler(sender, result, **kwargs):
+    print("Datacube process was successful!")
+    datacube=DataCube.objects.get(pk=result)
+    with open('openEO.nc', 'rb') as f:
+         ncdfile = File(f)
+         datacube.ncdfile.save('openEO.nc', ncdfile)
+         datacube.status='file_downloaded'
+         datacube.save()
 
-
+    datacube.timeseries={}
+    for band in list(datacube.dataproduct.bands.all().values_list('name', flat=True)):
+        datacube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(datacube.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
+        with open('timeseries_'+band+'.json') as f:
+            datacube.timeseries.update({band:json.load(f)})
+            datacube.save()
+            os.remove('timeseries_'+band+'.json')

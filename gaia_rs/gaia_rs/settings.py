@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'mapwidgets',
     'bootstrap5',
     'django_tables2',
+    'django_celery_results',
 
 
 ]
@@ -143,3 +144,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL= '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# Celery Configuration Options
+CELERY_TIMEZONE = "Europe/Madrid"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_BROKER_URL = "redis://localhost:6379"

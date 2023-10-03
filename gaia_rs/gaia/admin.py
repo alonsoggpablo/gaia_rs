@@ -55,7 +55,7 @@ def get_ndyi(modeladmin, request, queryset):
         datacube.get_ndyi()
 
 class DataCubeAdmin(admin.GISModelAdmin):
-    exclude = ('bands','north','south','east','west','ncdfile','timeseries')
+    exclude = ('bands','north','south','east','west','timeseries')
     list_display = ('name', 'temporal_extent_start', 'temporal_extent_end', 'max_cloud_cover','plot_image')
     ordering = ('name',)
     def get_actions(self, request):
