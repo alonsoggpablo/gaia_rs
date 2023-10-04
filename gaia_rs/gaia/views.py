@@ -16,7 +16,6 @@ def index(request):
     table=DataCubeTable(items)
     return render(request, 'index.html',{'table':table})
 
-
 def map_form(request):
     if request.method == 'POST':
         form = DataCubeForm(request.POST)
@@ -66,7 +65,7 @@ def process_datacube(request,pk):
     func()
 
     return render(request, 'datacube_detail.html', {'pk': pk,'datacube_table': datacube_table,'datacube':datacube,'geoimages_table':geoimages_table,'center_latitude':center_latitude,'center_longitude':center_longitude})
-
+    #return render (request,'processing_datacube.html',{'datacube':str(datacube.name)})
 
 def serve_geotiff(request, file_name):
     # Construct the path to the GeoTIFF file
@@ -92,7 +91,7 @@ def get_puntos(request,record_id):
     datacube=DataCube.objects.get(pk=record_id)
     status=datacube.status
     puntos=""
-    if status=='finished' or status=='created' or status=='error' or status=='':
+    if status=='finished' or status=='created' or status=='error' or status=='' or status=='file_downloaded':
         puntos=""
     else:
         puntos="..."

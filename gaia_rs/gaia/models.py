@@ -11,12 +11,12 @@ import pandas as pd
 import rasterio
 import shapely
 import xarray as xr
-from celery.signals import task_success
+from celery.signals import task_success, task_prerun
 from django.contrib.gis.db import models
 from django.core.files import File
 from rasterio.transform import from_origin
 
-from .tasks import download_copernicus_results, add
+from .tasks import download_copernicus_results, run_batch_job_process_datacube
 
 
 def remove_brackets(value):
@@ -189,25 +189,20 @@ class DataCube(models.Model):
             self.bands=list(self.dataproduct.bands.values_list('name', flat=True))
             super(DataCube, self).save(*args, **kwargs)
     def get_ncdf(self):
-        connection = openeo.connect('openeo.dataspace.copernicus.eu')
-        connection.authenticate_oidc()
-        datacube = connection.load_collection(
-            self.dataproduct.bands.first().collection,
-            bands=list(self.dataproduct.bands.all().values_list('name', flat=True)),
-            temporal_extent=(self.temporal_extent_start, self.temporal_extent_end),
-            spatial_extent={'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
-            max_cloud_cover=self.max_cloud_cover,
-        )
-        if self.dataproduct.category.category=='SAR':
-            datacube=datacube.sar_backscatter(coefficient="sigma0-ellipsoid")
-
-
-        job = datacube.execute_batch(output_format='netcdf',format='netcdf')
-        job_id=job.job_id
-        datacube_id=self.id
-        self.status='downloading_file'
+        self.status='processing'
         self.save()
-        download_copernicus_results.delay(job_id,datacube_id)
+        cube_dict={
+            'collection':self.dataproduct.bands.first().collection,
+            'bands':list(self.dataproduct.bands.all().values_list('name', flat=True)),
+            'temporal_extent':(self.temporal_extent_start, self.temporal_extent_end),
+            'spatial_extent':{'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
+            'max_cloud_cover':self.max_cloud_cover,
+            'category':self.dataproduct.category.category,
+        }
+
+
+        run_batch_job_process_datacube.delay(cube_dict,self.id)
+
 
 
 
@@ -364,20 +359,23 @@ class MapLayer(models.Model):
     def __str__(self):
         return self.name
 
+
+
 @task_success.connect(sender=download_copernicus_results)
 def download_copernicus_task_success_handler(sender, result, **kwargs):
     print("Datacube process was successful!")
     datacube=DataCube.objects.get(pk=result)
+    datacube.status='saving file'
+    datacube.save()
     with open('openEO.nc', 'rb') as f:
          ncdfile = File(f)
          datacube.ncdfile.save('openEO.nc', ncdfile)
-         datacube.status='file_downloaded'
-         datacube.save()
 
-    datacube.timeseries={}
-    for band in list(datacube.dataproduct.bands.all().values_list('name', flat=True)):
-        datacube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(datacube.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
-        with open('timeseries_'+band+'.json') as f:
-            datacube.timeseries.update({band:json.load(f)})
-            datacube.save()
-            os.remove('timeseries_'+band+'.json')
+
+    # datacube.timeseries={}
+    # for band in list(datacube.dataproduct.bands.all().values_list('name', flat=True)):
+    #     cube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(cube.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
+    #     with open('timeseries_'+band+'.json') as f:
+    #         datacube.timeseries.update({band:json.load(f)})
+    #         datacube.save()
+    #         os.remove('timeseries_'+band+'.json')

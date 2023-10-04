@@ -1,0 +1,17 @@
+<!-- index.html -->
+{% extends "base.html" %}
+{% load static %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Datacubes</title>
+</head>
+<body>
+    Your datacube {{datacube}} is being processed. Please wait.
+</body>
+</html>
+
+{% endblock %}

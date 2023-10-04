@@ -1,6 +1,8 @@
 # Create your tasks here
 import json
 import os
+import time
+
 import geopandas
 import shapely
 from celery import shared_task
@@ -9,12 +11,26 @@ from celery.signals import task_success, task_prerun, task_postrun
 
 
 @shared_task
-def add(x, y):
-    return x + y
+def run_batch_job_process_datacube(cube_dict,datacube_id):
+    # Initialize the OpenEO connection with your credentials
+    connection = openeo.connect('openeo.dataspace.copernicus.eu')
+    connection.authenticate_oidc()
 
-@task_success.connect(sender=add)
-def task_success_notifier(sender=None, **kwargs):
-    print("From task_success_notifier ==> Task run successfully!")
+    cube = connection.load_collection(
+        cube_dict['collection'],
+        bands=cube_dict['bands'],
+        temporal_extent=cube_dict['temporal_extent'],
+        spatial_extent=cube_dict['spatial_extent'],
+        max_cloud_cover=cube_dict['max_cloud_cover'],
+    )
+
+    if cube_dict['category'] == 'SAR':
+        cube = cube.sar_backscatter(coefficient="sigma0-ellipsoid")
+
+    job = cube.execute_batch(output_format='netcdf', format='netcdf')
+    job_id = job.job_id
+    download_copernicus_results.delay(job_id, datacube_id)
+
 
 @shared_task
 def download_copernicus_results(job_id,datacube_id):
@@ -29,7 +45,7 @@ def download_copernicus_results(job_id,datacube_id):
         # Check if the job is finished
         if job.status() == 'finished':
             # Download the results
-            results.download_files('')
+            #results.download_files('')
             print ('NetCDF download finished')
             return f"{datacube_id}"
         else:
