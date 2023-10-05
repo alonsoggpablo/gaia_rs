@@ -54,15 +54,15 @@ def process_datacube(request,pk):
     datacube.status='processing'
     datacube.save()
     datacube.get_ncdf()
-    dataproduct_script=str(datacube.dataproduct.script)
     datacube_table=DataCubeDetailTable([datacube])
     geoimages_table=GeoImageTable(datacube=datacube)
     polygon_centroid = datacube.spatial_extent.centroid
     center_latitude = polygon_centroid.y
     center_longitude = polygon_centroid.x
 
-    func=getattr(datacube,dataproduct_script)
-    func()
+    # dataproduct_script=str(datacube.dataproduct.script)
+    # func=getattr(datacube,dataproduct_script)
+    # func()
 
     return render(request, 'datacube_detail.html', {'pk': pk,'datacube_table': datacube_table,'datacube':datacube,'geoimages_table':geoimages_table,'center_latitude':center_latitude,'center_longitude':center_longitude})
     #return render (request,'processing_datacube.html',{'datacube':str(datacube.name)})

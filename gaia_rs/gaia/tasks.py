@@ -45,7 +45,7 @@ def download_copernicus_results(job_id,datacube_id):
         # Check if the job is finished
         if job.status() == 'finished':
             # Download the results
-            #results.download_files('')
+            results.download_files('')
             print ('NetCDF download finished')
             return f"{datacube_id}"
         else:
