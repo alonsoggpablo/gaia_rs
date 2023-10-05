@@ -14,10 +14,11 @@ import xarray as xr
 from celery.signals import task_success, task_prerun
 from django.contrib.gis.db import models
 from django.core.files import File
+from django.dispatch import Signal, receiver
 from rasterio.transform import from_origin
 
+from .signals import ncdfile_downloaded_signal
 from .tasks import download_copernicus_results, run_batch_job_process_datacube
-
 
 def remove_brackets(value):
     try:
@@ -25,6 +26,11 @@ def remove_brackets(value):
     except:
         return value
 
+def generate_timeseries(xarray,param):
+    spatially_aggregated_xarray = xarray.mean(dim=['x', 'y']).rename(param)
+    time_series = spatially_aggregated_xarray.sel(t=slice(None))
+    df = time_series.to_dataframe()
+    return df
 def generate_timeseries_plot(self,df,param):
     plt.title(param+ '_' + self.name)
     plt.xlabel('Date')
@@ -202,26 +208,18 @@ class DataCube(models.Model):
 
 
         run_batch_job_process_datacube.delay(cube_dict,self.id)
-
-
-
-
-
     def get_ndvi(self):
         ds = xr.open_dataset(self.ncdfile.path)
-
         # Select bands (NIR and Red) for NDVI calculation
         nir = ds['B08']
         red = ds['B04']
         # Calculate NDVI
         xarray = (nir - red) / (nir + red)
-        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['ndvi'] = (df['B08'] - df['B04']) / (df['B04'] + df['B08'])
+        df=generate_timeseries(xarray,'ndvi')
         generate_timeseries_plot(self,df,'ndvi')
         generate_raster_1band(self,ds,xarray,'ndvi')
     def get_rgb(self):
         ds = xr.open_dataset(self.ncdfile.path)
-
         generate_raster_3band(self,ds,'rgb')
     def get_bsi(self):
         ds = xr.open_dataset(self.ncdfile.path)
@@ -234,8 +232,7 @@ class DataCube(models.Model):
 
         # Calculate BSI
         xarray=((b11+b04)-(b08+b02))/((b11+b04)+(b08+b02))
-        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['bsi'] = ((df['B11'] + df['B04'])-(df['B08']+df['B02'])) / ((df['B11'] + df['B04'])+(df['B08']+df['B02']))
+        df = generate_timeseries(xarray, 'bsi')
         generate_timeseries_plot(self, df, 'bsi')
         generate_raster_1band(self,ds,xarray,'bsi')
     def get_ndci(self):
@@ -243,8 +240,7 @@ class DataCube(models.Model):
         b05= ds['B05']
         b04= ds['B04']
         ndci=(b05-b04)/(b05+b04)
-        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['ndci'] = (df['B05'] - df['B04'])/ (df['B05'] + df['B04'])
+        df=generate_timeseries(ndci,'ndci')
         generate_timeseries_plot(self, df, 'ndci')
         generate_raster_1band(self,ds,ndci,'ndci')
     def get_msi(self):
@@ -252,8 +248,7 @@ class DataCube(models.Model):
         b08= ds['B08']
         b11= ds['B11']
         msi=b11/b08
-        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['msi'] = df['B11']/ df['B08']
+        df=generate_timeseries(msi,'msi')
         generate_timeseries_plot(self, df, 'msi')
         generate_raster_1band(self,ds,msi,'msi')
     def get_evi(self):
@@ -262,8 +257,7 @@ class DataCube(models.Model):
         b04= ds['B04']
         b02= ds['B02']
         evi=2.5*((b08-b04)/(b08+6*b04-7.5*b02+1))
-        df = pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['evi'] = 2.5*(df['B08'] - df['B04'])/ (df['B08'] + 6*df['B04']-7.5*df['B02']+1)
+        df=generate_timeseries(evi,'evi')
         generate_timeseries_plot(self, df, 'evi')
         generate_raster_1band(self,ds,evi,'evi')
     def get_ndsi(self):
@@ -271,18 +265,16 @@ class DataCube(models.Model):
         b03= ds['B03']
         b11= ds['B11']
         ndsi=(b03-b11)/(b03+b11)
+        df=generate_timeseries(ndsi,'ndsi')
         generate_raster_1band(self,ds,ndsi,'ndsi')
-        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['ndsi'] = (df['B03'] - df['B11'])/ (df['B03'] + df['B11'])
         generate_timeseries_plot(self, df, 'ndsi')
     def get_ndwi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         b03= ds['B03']
         b08= ds['B08']
         ndwi=(b03-b08)/(b03+b08)
+        df=generate_timeseries(ndwi,'ndwi')
         generate_raster_1band(self,ds,ndwi,'ndwi')
-        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['ndwi'] = (df['B03'] - df['B08'])/ (df['B03'] + df['B08'])
         generate_timeseries_plot(self, df, 'ndwi')
     def get_bais(self):
         ds = xr.open_dataset(self.ncdfile.path)
@@ -293,9 +285,8 @@ class DataCube(models.Model):
         b07= ds['B07']
 
         bais=(1-((b06*b07*b8A)/b04)**0.5)*((b12-b8A)/((b12+b8A)**0.5)+1)
+        df=generate_timeseries(bais,'bais')
         generate_raster_1band(self,ds,bais,'bais')
-        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['bais'] = (1-((df['B06']*df['B07']*df['B8A'])/df['B04'])**0.5)*((df['B12']-df['B8A'])/((df['B12']+df['B8A'])**0.5)+1)
         generate_timeseries_plot(self, df, 'bais')
     def get_apa(self):
         ds = xr.open_dataset(self.ncdfile.path)
@@ -324,20 +315,19 @@ class DataCube(models.Model):
         b02= ds['B02']
         b03= ds['B03']
         ndyi=(b03-b02)/(b03+b02)
+        df=generate_timeseries(ndyi,'ndyi')
         generate_raster_1band(self,ds,ndyi,'ndyi')
-        df= pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['ndyi'] = (df['B03'] - df['B02'])/ (df['B03'] + df['B02'])
         generate_timeseries_plot(self, df, 'ndyi')
     def sar_rvi(self):
         ds = xr.open_dataset(self.ncdfile.path)
         VV= ds['VV']
         VH= ds['VH']
         rvi=(4*VH)/(VV+VH)
+        df=generate_timeseries(rvi,'rvi')
         generate_raster_1band(self,ds,rvi,'rvi')
-        df=pd.DataFrame.from_dict(self.timeseries).applymap(remove_brackets)
-        df['rvi'] = (4*df['VH'])/(df['VV']+df['VH'])
         generate_timeseries_plot(self, df, 'rvi')
-
+    def dispatch_ncdfile_dl_signal(self):
+        ncdfile_downloaded_signal.send(sender=self, instance=self)
 
     def __str__(self):
         return self.name
@@ -360,22 +350,29 @@ class MapLayer(models.Model):
         return self.name
 
 
-
 @task_success.connect(sender=download_copernicus_results)
 def download_copernicus_task_success_handler(sender, result, **kwargs):
     print("Datacube process was successful!")
     datacube=DataCube.objects.get(pk=result)
-    datacube.status='saving file'
+    datacube.status='saving_file'
     datacube.save()
+
     with open('openEO.nc', 'rb') as f:
-         ncdfile = File(f)
-         datacube.ncdfile.save('openEO.nc', ncdfile)
+        ncdfile = File(f)
+        datacube.ncdfile.save('openEO.nc', ncdfile)
+        datacube.save()
+
+    while not datacube.ncdfile:
+        print("Waiting for file to be saved into model")
+        time.sleep(1)
 
 
-    # datacube.timeseries={}
-    # for band in list(datacube.dataproduct.bands.all().values_list('name', flat=True)):
-    #     cube.band(band).aggregate_spatial(geometries=geopandas.GeoSeries([shapely.geometry.Polygon(cube.spatial_extent.coords[0])]).__geo_interface__, reducer='mean').download('timeseries_'+band+'.json')
-    #     with open('timeseries_'+band+'.json') as f:
-    #         datacube.timeseries.update({band:json.load(f)})
-    #         datacube.save()
-    #         os.remove('timeseries_'+band+'.json')
+    datacube.status='file_downloaded'
+    datacube.save()
+    datacube.dispatch_ncdfile_dl_signal()
+
+
+
+
+
+
