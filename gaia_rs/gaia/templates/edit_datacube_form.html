@@ -1,0 +1,24 @@
+
+{% extends "base.html" %}
+{% block title %}Edit DataCube{% endblock %}
+{% block content %}
+
+<body>
+<h1>Edit DataCube</h1>
+<form method="post">
+    {% csrf_token %}
+       <div class="d-flex justify-content-end">
+            <!-- Bootstrap Button -->
+            <button class="btn btn-primary">Save</button>
+        </div>
+    {{ form.as_p }}
+
+</form>
+{% endblock %}
+
+{%block footer%}
+{%endblock%}
+
+
+{%block scripts%}
+{%endblock%}

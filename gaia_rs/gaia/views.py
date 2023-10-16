@@ -4,13 +4,13 @@ from django.http import FileResponse, HttpResponseNotFound, JsonResponse, HttpRe
 from django.shortcuts import render, redirect
 from django.urls import reverse
 
-from .filters import DataCubeFilter
-from .models import MapLayer, GeoImage
+from .filters import DataCubeFilter, DataProductFilter
+from .models import MapLayer, GeoImage, DataProduct
 from .models import DataCube
-from .forms import DataCubeForm
+from .forms import DataCubeForm, EditDataCubeForm
 from django.contrib.gis.geos import Polygon
 import json
-from .tables import DataCubeTable, DataCubeDetailTable, GeoImageTable
+from .tables import DataCubeTable, DataCubeDetailTable, GeoImageTable, DataProductTable
 from django.conf import settings
 from django_tables2.views import SingleTableMixin
 from django_filters.views import FilterView
@@ -19,6 +19,18 @@ def index(request):
     items=DataCube.objects.all()
     table=DataCubeTable(items)
     return render(request, 'index.html',{'table':table,'filter':DataCubeTable.Meta.filterset_class})
+
+
+def dataproducts(request):
+    items=DataProduct.objects.all()
+    table=DataProductTable(items)
+    return render(request, 'dataproduct_table.html',{'table':table})
+
+class DataProductsListView(SingleTableMixin,FilterView):
+    table_class = DataProductTable
+    model=DataProduct
+    template_name = 'dataproduct_table.html'
+    filterset_class = DataProductFilter
 
 class DataCubeListView(SingleTableMixin,FilterView):
     table_class = DataCubeTable
@@ -103,7 +115,6 @@ def get_status(request, record_id):
         status = """
                    <a href='{}' class='btn btn-primary btn-sm'>Results</a>
                """.format(url)
-        datacube.status='-'
         datacube.save()
     return HttpResponse(status)
 
@@ -111,7 +122,7 @@ def get_puntos(request,record_id):
     datacube=DataCube.objects.get(pk=record_id)
     status=datacube.status
     puntos=""
-    if status=='finished' or status=='created' or status=='error' or status=='' or status=='file_downloaded':
+    if status=='finished' or status=='created' or status=='error' or status=='' or status=='file_downloaded' or status=='-':
         puntos=""
     else:
         puntos="..."
@@ -135,10 +146,16 @@ def datacube_edit(request,pk):
         if form.is_valid():
             form.save()
             return redirect('gaia:datacube_detail',pk=pk)
-    else:
-        form=DataCubeForm(instance=datacube)
+        return redirect('gaia:datacube_detail', pk=pk)
 
-    return render(request,f'map_form.html',{'form':form})
+    else:
+        form=EditDataCubeForm(instance=datacube)
+        if form.is_valid():
+            form.save()
+            return redirect('gaia:datacube_detail', pk=pk)
+        return render(request,f'edit_datacube_form.html',{'form':form})
+
+
 
 
 def delete_geoimage(request,pk):
@@ -151,6 +168,13 @@ def delete_datacube(request,pk):
     datacube=DataCube.objects.get(pk=pk)
     datacube.delete()
     return redirect('gaia:index')
+
+
+def raster_file_download(request,pk):
+    datacube_instance=GeoImage.objects.get(pk=pk)
+    raster_file_path=datacube_instance.raster_file.path
+    return FileResponse(open(raster_file_path, 'rb'), content_type='application/tif')
+
 
 
 

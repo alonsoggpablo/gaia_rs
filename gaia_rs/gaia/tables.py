@@ -38,13 +38,17 @@ class DataCubeDetailTable(tables.Table):
 
     edit=tables.TemplateColumn(template_name='edit_datacube_button.html',verbose_name='Edit',orderable=False)
     delete=tables.TemplateColumn(template_name='delete_datacube_button.html',verbose_name='Delete',orderable=False)
-
     class Meta:
         model = DataCube
         fields=('name','dataproduct','temporal_extent_start','temporal_extent_end','max_cloud_cover','status')
         template_name = 'django_tables2/bootstrap4.html'
 
-
+class DataProductTable(tables.Table):
+    class Meta:
+        model = DataProduct
+        fields=('name','description')
+        template_name = 'django_tables2/bootstrap4.html'
+        order_by = 'name'
 
 class GeoImageTable(tables.Table):
     raster_file=tables.LinkColumn(
@@ -52,6 +56,7 @@ class GeoImageTable(tables.Table):
         args=[tables.A('pk')],
         text=lambda record: record.name,
     )
+    save=tables.TemplateColumn(template_name='raster_save_button.html',verbose_name='Save',orderable=False)
 
     delete=tables.TemplateColumn(template_name='delete_geoimage_button.html',verbose_name='Delete',orderable=False)
     class Meta:

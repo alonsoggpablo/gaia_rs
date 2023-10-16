@@ -1,4 +1,10 @@
-<a href="{% url 'gaia:datacube_edit' record.id %}" hx-trigger="click" class="btn btn-info btn-sm">Edit</a>
+<script src="https://unpkg.com/htmx.org@1.9.1/dist/htmx.min.js"></script>
+
+<form action="{% url 'gaia:datacube_edit' record.id %}" method="get">
+  {% csrf_token %}
+  <input type="hidden" name="pk" value="{{ object.pk }}">
+  <button type="submit" class="btn btn-info btn-sm" >Edit</button>
+</form>
 
 
 

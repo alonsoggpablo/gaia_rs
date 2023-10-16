@@ -19,6 +19,8 @@ from rasterio.transform import from_origin
 
 from .signals import ncdfile_downloaded_signal
 from .tasks import download_copernicus_results, run_batch_job_process_datacube
+from .validators import validate_polygon_area
+
 
 def remove_brackets(value):
     try:
@@ -171,7 +173,7 @@ class DataProduct(models.Model):
 
 class DataCube(models.Model):
     name = models.CharField(max_length=100)
-    spatial_extent = models.PolygonField()  # Store the spatial extent as a polygon
+    spatial_extent = models.PolygonField(validators=[validate_polygon_area],)  # Store the spatial extent as a polygon
     temporal_extent_start = models.DateTimeField()
     temporal_extent_end = models.DateTimeField()
     dataproduct=models.ForeignKey(DataProduct, on_delete=models.CASCADE)

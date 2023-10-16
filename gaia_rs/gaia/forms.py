@@ -3,7 +3,6 @@ import json
 from django import forms
 from django.contrib.gis.forms import PolygonField, OSMWidget
 from django.utils.safestring import mark_safe
-
 from .models import DataCube
 
 class CustomSpatialExtentWidget(forms.Widget):
@@ -81,7 +80,8 @@ class DataCubeForm(forms.ModelForm):
     class Meta:
         model= DataCube
         fields=['name','temporal_extent_start','temporal_extent_end','max_cloud_cover','dataproduct','spatial_extent']
-        widgets={'spatial_extent': forms.HiddenInput(),
+        widgets={
+                'spatial_extent':OSMWidget(),
                  'temporal_extent_end': forms.DateInput(attrs={'type': 'date'}),
                  'temporal_extent_start':forms.DateInput(attrs={'type':'date'}),
                  }
@@ -95,6 +95,23 @@ class DataCubeForm(forms.ModelForm):
         #     'temporal_extent_end':forms.DateInput(attrs={'type':'date'}),
         #     'temporal_extent_start':forms.DateInput(attrs={'type':'date'}),
         # }
+    def clean(self):
+        cleaned_data=super().clean()
+        temporal_extent_start=cleaned_data.get("temporal_extent_start")
+        temporal_extent_end=cleaned_data.get("temporal_extent_end")
+        if temporal_extent_start > temporal_extent_end:
+            raise forms.ValidationError("Temporal extent start must be before temporal extent end")
+        return cleaned_data
+class EditDataCubeForm(forms.ModelForm):
+    class Meta:
+        model= DataCube
+        fields=['name','temporal_extent_start','temporal_extent_end','max_cloud_cover','dataproduct','spatial_extent']
+        widgets={
+                'spatial_extent':OSMWidget(),
+                 'temporal_extent_end': forms.DateInput(attrs={'type': 'date'}),
+                 'temporal_extent_start':forms.DateInput(attrs={'type':'date'}),
+                 }
+
     def clean(self):
         cleaned_data=super().clean()
         temporal_extent_start=cleaned_data.get("temporal_extent_start")

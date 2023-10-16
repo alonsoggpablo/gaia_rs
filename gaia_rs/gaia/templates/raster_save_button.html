@@ -1,0 +1,7 @@
+<script src="https://unpkg.com/htmx.org@1.9.1/dist/htmx.min.js"></script>
+
+<form action="{% url 'gaia:raster_file_download' record.id %}" method="post">
+  {% csrf_token %}
+  <input type="hidden" name="pk" value="{{ object.pk }}">
+  <button type="submit" class="btn btn-secondary btn-sm" >Save</button>
+</form>

@@ -8,6 +8,7 @@ app_name = 'gaia'
 
 urlpatterns = [
     path('', views.DataCubeListView.as_view(), name='index'),
+    path('dataproducts', views.DataProductsListView.as_view(), name='dataproducts'),
     path('map_form/', views.map_form, name='map_form'),
     path('datacube_detail/<int:pk>/', views.datacube_detail, name='datacube_detail'),
     path('process_datacube/<int:pk>/', views.process_datacube, name='process_datacube'),
@@ -19,5 +20,6 @@ urlpatterns = [
     path('datacube_edit/<int:pk>/', views.datacube_edit, name='datacube_edit'),
     path('delete_geoimage/<int:pk>/', views.delete_geoimage, name='delete_geoimage'),
     path('delete_datacube/<int:pk>/', views.delete_datacube, name='delete_datacube'),
+    path('raster_file_download/<int:pk>/', views.raster_file_download, name='raster_file_download'),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
