@@ -85,16 +85,6 @@ class DataCubeForm(forms.ModelForm):
                  'temporal_extent_end': forms.DateInput(attrs={'type': 'date'}),
                  'temporal_extent_start':forms.DateInput(attrs={'type':'date'}),
                  }
-        #     'spatial_extent':OSMWidget(attrs={
-        #     'map_width': 800,  # Set the width of the map in pixels
-        #     'map_height': 600,  # Set the height of the map in pixels
-        #     'default_lon': -3.70384,  # Set the default longitude
-        #     'default_lat': 40.4166,  # Set the default latitude
-        #     'default_zoom': 6,
-        #     }),
-        #     'temporal_extent_end':forms.DateInput(attrs={'type':'date'}),
-        #     'temporal_extent_start':forms.DateInput(attrs={'type':'date'}),
-        # }
     def clean(self):
         cleaned_data=super().clean()
         temporal_extent_start=cleaned_data.get("temporal_extent_start")
@@ -107,11 +97,10 @@ class EditDataCubeForm(forms.ModelForm):
         model= DataCube
         fields=['name','temporal_extent_start','temporal_extent_end','max_cloud_cover','dataproduct','spatial_extent']
         widgets={
-                'spatial_extent':OSMWidget(),
                  'temporal_extent_end': forms.DateInput(attrs={'type': 'date'}),
                  'temporal_extent_start':forms.DateInput(attrs={'type':'date'}),
                  }
-
+    exclude_fields=['spatial_extent']
     def clean(self):
         cleaned_data=super().clean()
         temporal_extent_start=cleaned_data.get("temporal_extent_start")

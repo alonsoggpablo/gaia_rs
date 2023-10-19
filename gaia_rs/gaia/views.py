@@ -140,21 +140,18 @@ def view_png(request,plot_image):
         return HttpResponse('File not found', status=404)
 
 def datacube_edit(request,pk):
-    datacube = DataCube.objects.get(pk=pk)
     if request.method == 'POST':
-        form = DataCubeForm(request.POST,instance=datacube)
+        form = EditDataCubeForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('gaia:datacube_detail',pk=pk)
-        return redirect('gaia:datacube_detail', pk=pk)
+            return redirect('gaia:index')
 
     else:
+        datacube = DataCube.objects.get(pk=pk)
         form=EditDataCubeForm(instance=datacube)
-        if form.is_valid():
-            form.save()
-            return redirect('gaia:datacube_detail', pk=pk)
-        return render(request,f'edit_datacube_form.html',{'form':form})
+        return render(request,f'edit_datacube_form.html', {'form':form})
 
+    return redirect('gaia:index')
 
 
 
