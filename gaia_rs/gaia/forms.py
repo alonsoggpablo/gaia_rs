@@ -56,7 +56,8 @@ class CustomSpatialExtentWidget(forms.Widget):
         draw: {
             polygon: {
                 allowIntersection: false,
-                showArea: true
+                showArea: true,
+                metric: ['km', 'm'],
             }
         }
     });
