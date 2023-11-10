@@ -78,9 +78,10 @@ map.on('click', e => {
     const results = geoblaze.identify(georaster, lnglat);
     const formattedResults = results.map(result => parseFloat(result.toFixed(2)));
     // Create a popup with the identification results
+    const normalizedResults = formattedResults / 255;
     const popup = L.popup()
         .setLatLng(latlng)
-        .setContent(`{{geoimage.datacube.dataproduct.name}}:<br>${JSON.stringify(formattedResults)}`)
+        .setContent(`{{geoimage.datacube.dataproduct.name}}:<br>${JSON.stringify(normalizedResults.toFixed(2))}`)
         .openOn(map);
 });
 

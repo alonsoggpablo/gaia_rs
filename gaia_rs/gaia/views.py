@@ -1,5 +1,6 @@
 import os
 
+import rasterio
 from django.http import FileResponse, HttpResponseNotFound, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -172,6 +173,24 @@ def raster_file_download(request,pk):
     raster_file_path=datacube_instance.raster_file.path
     return FileResponse(open(raster_file_path, 'rb'), content_type='application/tif')
 
+def raster_file_download(request,pk):
+    datacube_instance=GeoImage.objects.get(pk=pk)
+    raster_file_path=datacube_instance.raster_file.path
 
+    # Open the GeoTIFF file
+    with rasterio.open(raster_file_path) as src:
+
+        # Create a new GeoTIFF file to store the normalized results
+        dst = rasterio.open(raster_file_path, "w", **src.profile)
+
+        # Divide each band in the GeoTIFF by 255
+        for band in range(src.count):
+            dst.write(src.read(band) / 255, band)
+
+        # Close the new GeoTIFF file
+        dst.close()
+
+    # Return the normalized GeoTIFF file
+    return FileResponse(open("normalized.tif", 'rb'), content_type='application/tif')
 
 

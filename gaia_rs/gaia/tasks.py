@@ -3,7 +3,10 @@ import json
 import os
 import time
 
+import cv2
 import geopandas
+import numpy as np
+import rasterio
 import shapely
 from celery import shared_task
 import openeo
@@ -52,5 +55,8 @@ def download_copernicus_results(job_id,datacube_id):
             return f"Job status is not 'finished': {job.status()}"
     except Exception as e:
         return f"Error while downloading results: {str(e)}"
+
+
+
 
 

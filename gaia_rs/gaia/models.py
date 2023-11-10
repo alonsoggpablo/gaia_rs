@@ -17,6 +17,7 @@ from django.core.files import File
 from django.dispatch import Signal, receiver
 from rasterio.transform import from_origin
 
+from .aux import histogram_3band_equalization, single_band_pseudocolor_image
 from .signals import ncdfile_downloaded_signal
 from .tasks import download_copernicus_results, run_batch_job_process_datacube
 from .validators import validate_polygon_area
@@ -73,6 +74,8 @@ def generate_raster_1band(self,ds,xarray,param):
                                      observation_date=date,
                                      datacube=self)
 
+        single_band_pseudocolor_image(output_geotiff)
+
         with open(output_geotiff, 'rb') as raster_file:
             geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
 
@@ -110,6 +113,8 @@ def generate_raster_3band(self,ds,param):
                                      processing_date=datetime.datetime.now(),
                                      observation_date=date,
                                      datacube=self)
+
+        histogram_3band_equalization(output_geotiff)
 
         with open(output_geotiff, 'rb') as raster_file:
             geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
