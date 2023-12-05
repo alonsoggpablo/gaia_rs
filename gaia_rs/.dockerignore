@@ -1,0 +1,27 @@
+# Ignore .git and .gitignore
+.git
+.gitignore
+
+# Ignore cache directories
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ignore virtual environment
+venv
+*.venv
+*.venv/
+
+# Ignore IDE specific files
+.vscode
+.idea
+
+# Ignore log files
+*.log
+
+# Ignore OS generated files
+.DS_Store
+ehthumbs.db
+Thumbs.db
