@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 
 def validate_polygon_area(value):
     # Replace 'max_area' with your desired maximum area in square units
-    max_area = 0.001  # Adjust this value as needed
+    max_area = 0.1  # Adjust this value as needed
 
     # Calculate the area of the polygon using a suitable method
     # This depends on the units used by your PolygonField, adjust accordingly
