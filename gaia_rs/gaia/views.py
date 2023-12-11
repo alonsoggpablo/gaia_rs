@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 import rasterio
 from django.http import FileResponse, HttpResponseNotFound, JsonResponse, HttpResponse
@@ -173,24 +174,33 @@ def raster_file_download(request,pk):
     raster_file_path=datacube_instance.raster_file.path
     return FileResponse(open(raster_file_path, 'rb'), content_type='application/tif')
 
-def raster_file_download(request,pk):
-    datacube_instance=GeoImage.objects.get(pk=pk)
-    raster_file_path=datacube_instance.raster_file.path
+def raster_file_download(request, pk):
+    datacube_instance = GeoImage.objects.get(pk=pk)
+    raster_file_path = datacube_instance.raster_file.path
+    # Create a temporary file for the normalized data
+    with tempfile.NamedTemporaryFile(suffix=".tif") as temp_file:
+        # Open the GeoTIFF file
+        with rasterio.open(raster_file_path) as src:
 
-    # Open the GeoTIFF file
-    with rasterio.open(raster_file_path) as src:
+            # Create a new GeoTIFF file to store the normalized results
+            dst = rasterio.open(temp_file.name, "w", **src.profile)
 
-        # Create a new GeoTIFF file to store the normalized results
-        dst = rasterio.open(raster_file_path, "w", **src.profile)
+            # Divide each band in the GeoTIFF by 255
+            for band in range(src.count):
+                try:
+                    dst.write(src.read(band) / 255, band)
+                except:
+                    pass
 
-        # Divide each band in the GeoTIFF by 255
-        for band in range(src.count):
-            dst.write(src.read(band) / 255, band)
+            # Close the temporary file
+            dst.close()
 
-        # Close the new GeoTIFF file
-        dst.close()
+            # Read the normalized data from the temporary file
+            with open(temp_file.name, 'rb') as f:
+                normalized_data = f.read()
 
-    # Return the normalized GeoTIFF file
-    return FileResponse(open("normalized.tif", 'rb'), content_type='application/tif')
+            # Return the normalized GeoTIFF file
+            return FileResponse(normalized_data, content_type='application/tif')
+
 
 
