@@ -165,43 +165,26 @@ def delete_datacube(request,pk):
     datacube=DataCube.objects.get(pk=pk)
     datacube.delete()
     return redirect('gaia:index')
+def raster_file_download(request, pk):
+    geoimage = GeoImage.objects.get(pk=pk)
+    #raster_file_path = geoimage.raster_file.path
+    raster_file_path = r'/Users/pabloalonso/Documents/GitHub/gaia_rs/gaia_rs/media/raster_files/barrios_de_luna_rgb_2023_08_04_27crRcR.tif'
+    # Open the GeoTIFF file
+    with rasterio.open(raster_file_path) as src:
+        # Read the data from the GeoTIFF file into a numpy array
+        data = src.read()
 
+        # Divide the numpy array by 255 to normalize the data
+        normalized_data = data / 255.0
 
-def raster_file_download(request,pk):
-    datacube_instance=GeoImage.objects.get(pk=pk)
-    raster_file_path=datacube_instance.raster_file.path
-    return FileResponse(open(raster_file_path, 'rb'), content_type='application/tif')
-
-# def raster_file_download(request, pk):
-#     datacube_instance = GeoImage.objects.get(pk=pk)
-#     #raster_file_path = datacube_instance.raster_file.path
-#     raster_file_path=r'/Users/pabloalonso/Documents/GitHub/gaia_rs/gaia_rs/media/raster_files/barrios_de_luna_rgb_2023_08_04_27crRcR.tif'
-#     # Create a temporary file for the normalized data
-#     with tempfile.NamedTemporaryFile(suffix=".tif") as temp_file:
-#         # Open the GeoTIFF file
-#         with rasterio.open(raster_file_path) as src:
-#
-#             # Create a new GeoTIFF file to store the normalized results
-#             dst = rasterio.open(temp_file.name, "w", **src.profile)
-#
-#             # Divide each band in the GeoTIFF by 255
-#             for band in dst.indexes:
-#                 try:
-#                     dst.write(src.read(band) / 255, band)
-#                 except:
-#                     pass
-#
-#             # Close the temporary file
-#             dst.close()
-#
-#             # Read the normalized data from the temporary file
-#             with open(temp_file.name, 'rb') as f:
-#                 normalized_data = f.read()
-#             # Set the filename and extension for the file response
-#             filename = "normalized.tif"
-#
-#             # Return the normalized GeoTIFF file to the user
-#             return FileResponse(normalized_data, content_type='application/tif', filename=filename)
+        # Create a temporary file for the normalized data
+        with tempfile.NamedTemporaryFile(suffix=".tif",delete=False) as temp_file:
+            # Create a new GeoTIFF file to store the normalized results
+            with rasterio.open(temp_file.name, "w", **src.profile) as dst:
+                # Write the normalized data to the new GeoTIFF file
+                dst.write(normalized_data)
+                    #Download temporary file
+    return FileResponse(open(temp_file.name,'rb'), content_type='application/tif',filename='download.tif')
 
 
 
