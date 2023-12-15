@@ -167,8 +167,8 @@ def delete_datacube(request,pk):
     return redirect('gaia:index')
 def raster_file_download(request, pk):
     geoimage = GeoImage.objects.get(pk=pk)
-    #raster_file_path = geoimage.raster_file.path
-    raster_file_path = r'/Users/pabloalonso/Documents/GitHub/gaia_rs/gaia_rs/media/raster_files/barrios_de_luna_rgb_2023_08_04_27crRcR.tif'
+    raster_file_path = geoimage.raster_file.path
+    #raster_file_path = r'/Users/pabloalonso/Documents/GitHub/gaia_rs/gaia_rs/media/raster_files/barrios_de_luna_rgb_2023_08_04_27crRcR.tif'
     # Open the GeoTIFF file
     with rasterio.open(raster_file_path) as src:
         # Read the data from the GeoTIFF file into a numpy array
