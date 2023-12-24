@@ -94,8 +94,8 @@ def generate_raster_3band(self,ds,param):
         lon_resolution=(east-west)/ds.dims['x']
         lat_resolution=(north-south)/ds.dims['y']
         transform= from_origin(west, north, lon_resolution, lat_resolution)
-        red = ds.isel(t=t)['B04']
-        green = ds.isel(t=t)['B03']
+        red = ds.isel(t=t)['B03']
+        green = ds.isel(t=t)['B04']
         blue = ds.isel(t=t)['B02']
         # Normalize the bands to the range [0, 1]
         normalized_red = (red - red.min()) / (red.max() - red.min())
