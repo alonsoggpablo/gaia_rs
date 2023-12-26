@@ -21,6 +21,7 @@ from .aux import histogram_3band_equalization, single_band_pseudocolor_image
 from .signals import ncdfile_downloaded_signal
 from .tasks import download_copernicus_results, run_batch_job_process_datacube
 from .validators import validate_polygon_area
+from skimage import exposure
 
 
 def remove_brackets(value):
@@ -105,6 +106,10 @@ def generate_raster_3band(self,ds,param):
         output_geotiff = f'{name}_{param}_{date}.tif'.replace('-', '_')
         rgb_array=np.stack([normalized_red, normalized_green, normalized_blue], axis=0)
         crs='+proj=latlong'
+        # remove nan values
+        rgb_array = np.nan_to_num(rgb_array)
+        # Enhance the histogram using histogram equalization
+        rgb_array = exposure.equalize_hist(rgb_array.astype("float"))
         with rasterio.open(output_geotiff, 'w', driver='GTiff', height=red.sizes['y'], width=red.sizes['x'],
                            count=3, dtype=str(rgb_array.dtype), crs=crs, transform=transform) as dst:
             dst.write(rgb_array, [1,2,3])
@@ -114,7 +119,7 @@ def generate_raster_3band(self,ds,param):
                                      observation_date=date,
                                      datacube=self)
 
-        histogram_3band_equalization(output_geotiff)
+        #histogram_3band_equalization(output_geotiff)
 
         with open(output_geotiff, 'rb') as raster_file:
             geoimage_instance.raster_file.save(output_geotiff, File(raster_file))
