@@ -57,6 +57,30 @@ def download_copernicus_results(job_id,datacube_id):
         return f"Error while downloading results: {str(e)}"
 
 
+def sync_batch_job_process_datacube(cube_dict,datacube_id):
+    # Initialize the OpenEO connection with your credentials
+    connection = openeo.connect('openeo.dataspace.copernicus.eu')
+    connection.authenticate_oidc()
+
+    cube = connection.load_collection(
+        cube_dict['collection'],
+        #bands=cube_dict['bands'],
+        temporal_extent=cube_dict['temporal_extent'],
+        spatial_extent=cube_dict['spatial_extent'],
+        max_cloud_cover=cube_dict['max_cloud_cover'],
+    )
+
+    if cube_dict['category'] == 'SAR':
+        cube = cube.sar_backscatter(coefficient="sigma0-ellipsoid")
+
+    job = cube.execute_batch(format='GTiff')
+    job_id = job.job_id
+    results = job.get_results()
+    for asset in results.get_assets():
+        if asset.metadata["type"].startswith("image/tif"):
+            asset.download(asset.name)
+
+
 
 
 

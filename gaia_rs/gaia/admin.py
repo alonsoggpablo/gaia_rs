@@ -7,6 +7,12 @@ from .models import WorldBorder, DataCube, Band, DataProduct, Category, Script, 
 
 admin.site.register(WorldBorder,admin.GISModelAdmin)
 
+def sync_batch_job(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.sync_batch_job()
+def sync_sentinel_hub_s2(modeladmin, request, queryset):
+    for datacube in queryset:
+        datacube.sync_sentinel_hub_s2()
 def get_ncdf(modeladmin, request, queryset):
     for datacube in queryset:
         datacube.get_ncdf()
@@ -62,6 +68,8 @@ class DataCubeAdmin(admin.GISModelAdmin):
         actions = super(DataCubeAdmin, self).get_actions(request)
 
         actions['get_ncdf'] = (get_ncdf, 'get_ncdf', 'Get Satellite Data')
+        actions['sync_batch_job'] = (sync_batch_job, 'sync_batch_job', 'Sync Batch Job')
+        actions['sync_sentinel_hub_s2'] = (sync_sentinel_hub_s2, 'sync_sentinel_hub_s2', 'Sync Sentinel Hub S2')
         actions['get_bais'] = (get_bais, 'get_bais', 'Disaster Fire raster files')
         actions['get_bsi'] = (get_bsi, 'get_bsi', 'Land BSI raster files')
         actions['get_ndwi'] = (get_ndwi, 'get_ndwi', 'Marine NDWI raster files')

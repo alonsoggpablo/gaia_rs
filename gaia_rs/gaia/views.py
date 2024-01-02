@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+import openeo
 import rasterio
 from django.http import FileResponse, HttpResponseNotFound, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
@@ -185,6 +186,9 @@ def raster_file_download(request, pk):
                 dst.write(normalized_data)
                     #Download temporary file
     return FileResponse(open(temp_file.name,'rb'), content_type='application/tif',filename='download.tif')
+
+
+
 
 
 

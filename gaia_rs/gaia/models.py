@@ -16,12 +16,13 @@ from django.contrib.gis.db import models
 from django.core.files import File
 from django.dispatch import Signal, receiver
 from rasterio.transform import from_origin
-
+from skimage import img_as_ubyte
 from .aux import histogram_3band_equalization, single_band_pseudocolor_image
+from .sentinel_hub_request_s2 import sync_sentinel_hub_s2
 from .signals import ncdfile_downloaded_signal
-from .tasks import download_copernicus_results, run_batch_job_process_datacube
+from .tasks import download_copernicus_results, run_batch_job_process_datacube,sync_batch_job_process_datacube
 from .validators import validate_polygon_area
-from skimage import exposure
+from skimage.exposure import equalize_hist
 
 
 def remove_brackets(value):
@@ -95,24 +96,28 @@ def generate_raster_3band(self,ds,param):
         lon_resolution=(east-west)/ds.dims['x']
         lat_resolution=(north-south)/ds.dims['y']
         transform= from_origin(west, north, lon_resolution, lat_resolution)
+
+
         red = ds.isel(t=t)['B03']
         green = ds.isel(t=t)['B04']
         blue = ds.isel(t=t)['B02']
-        # Normalize the bands to the range [0, 1]
-        normalized_red = (red - red.min()) / (red.max() - red.min())
-        normalized_green = (green - green.min()) / (green.max() - green.min())
-        normalized_blue = (blue - blue.min()) / (blue.max() - blue.min())
+
+        #remove nan from dataarray
+        red=np.nan_to_num(red,nan=0)
+        green=np.nan_to_num(green,nan=0)
+        blue=np.nan_to_num(blue,nan=0)
 
         output_geotiff = f'{name}_{param}_{date}.tif'.replace('-', '_')
-        rgb_array=np.stack([normalized_red, normalized_green, normalized_blue], axis=0)
         crs='+proj=latlong'
-        # remove nan values
-        rgb_array = np.nan_to_num(rgb_array)
-        # Enhance the histogram using histogram equalization
-        rgb_array = exposure.equalize_hist(rgb_array.astype("float"))
-        with rasterio.open(output_geotiff, 'w', driver='GTiff', height=red.sizes['y'], width=red.sizes['x'],
-                           count=3, dtype=str(rgb_array.dtype), crs=crs, transform=transform) as dst:
-            dst.write(rgb_array, [1,2,3])
+        rgb_array = np.dstack((red, green, blue))
+        rgb_array=equalize_hist(rgb_array)
+        rgb_array = img_as_ubyte(rgb_array)
+
+        # Stack the equalized channels back together
+        with rasterio.open(output_geotiff, 'w', driver='GTiff', height=red.shape[0], width=red.shape[1],
+                           count=3, dtype=str(rgb_array.dtype), crs=crs, transform=transform,compress='JPEG') as dst:
+            for i in range(rgb_array.shape[2]):
+                dst.write(rgb_array[:, :, i], i + 1)
 
         geoimage_instance = GeoImage(name=output_geotiff,
                                      processing_date=datetime.datetime.now(),
@@ -206,6 +211,27 @@ class DataCube(models.Model):
             self.west=self.spatial_extent.envelope[0][0][0]
             self.bands=list(self.dataproduct.bands.values_list('name', flat=True))
             super(DataCube, self).save(*args, **kwargs)
+
+    def sync_batch_job(self):
+        cube_dict={
+            'collection':self.dataproduct.bands.first().collection,
+            'bands':list(self.dataproduct.bands.all().values_list('name', flat=True)),
+            'temporal_extent':(self.temporal_extent_start, self.temporal_extent_end),
+            'spatial_extent':{'west': self.west, 'east': self.east, 'north': self.north, 'south': self.south},
+            'max_cloud_cover':self.max_cloud_cover,
+            'category':self.dataproduct.category.category,
+        }
+        sync_batch_job_process_datacube(cube_dict,self.id)
+
+    def sync_sentinel_hub_s2(self):
+        north=self.north
+        south=self.south
+        west=self.west
+        east=self.east
+        temporal_extent_start=self.temporal_extent_start.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        temporal_extent_end=self.temporal_extent_end.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        sync_sentinel_hub_s2(north,south,east,west,temporal_extent_start,temporal_extent_end)
+
     def get_ncdf(self):
         self.status='processing'
         self.save()

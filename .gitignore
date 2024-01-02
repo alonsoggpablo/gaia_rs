@@ -9,3 +9,5 @@ gaia_rs/gaia_rs/settings.py
 /gaia_rs/media/images/*.tif
 /gaia_rs/media/raster_files/*.tif
 
+/gaia_rs/media/ncdf/openEO_7K9jY9T.nc.aux.xml
+/gaia_rs/media/ncdf/openEO.nc.aux.xml
