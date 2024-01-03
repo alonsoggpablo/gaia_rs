@@ -170,22 +170,7 @@ def raster_file_download(request, pk):
     geoimage = GeoImage.objects.get(pk=pk)
     raster_file_path = geoimage.raster_file.path
     #raster_file_path = r'/Users/pabloalonso/Documents/GitHub/gaia_rs/gaia_rs/media/raster_files/barrios_de_luna_rgb_2023_08_04_27crRcR.tif'
-    # Open the GeoTIFF file
-    with rasterio.open(raster_file_path) as src:
-        # Read the data from the GeoTIFF file into a numpy array
-        data = src.read()
-
-        # Divide the numpy array by 255 to normalize the data
-        normalized_data = data / 255.0
-
-        # Create a temporary file for the normalized data
-        with tempfile.NamedTemporaryFile(suffix=".tif",delete=False) as temp_file:
-            # Create a new GeoTIFF file to store the normalized results
-            with rasterio.open(temp_file.name, "w", **src.profile) as dst:
-                # Write the normalized data to the new GeoTIFF file
-                dst.write(normalized_data)
-                    #Download temporary file
-    return FileResponse(open(temp_file.name,'rb'), content_type='application/tif',filename='download.tif')
+    return FileResponse(open(raster_file_path,'rb'), content_type='application/tif',filename=geoimage.name)
 
 
 
