@@ -232,6 +232,7 @@ class DataCube(models.Model):
         temporal_extent_end=self.temporal_extent_end.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
         sync_sentinel_hub_s2(north,south,east,west,temporal_extent_start,temporal_extent_end)
 
+
     def get_ncdf(self):
         self.status='processing'
         self.save()

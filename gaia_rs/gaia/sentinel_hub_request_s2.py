@@ -20,23 +20,50 @@ token = oauth.fetch_token(token_url='https://identity.dataspace.copernicus.eu/au
 
 
 def sync_sentinel_hub_s2(north,south,east,west,temporal_extent_start,temporal_extent_end):
-    evalscript_true_color = """
+    evalscript = """
         //VERSION=3
 
         function setup() {
-            return {
-                input: [{
-                    bands: ["B02", "B03", "B04"]
-                }],
-                output: {
-                    bands: 3
-                }
-            };
-        }
+  return{
+    input: [{bands:["B02", "B03", "B04", "AOT", "SCL", "SNW", "CLD", "sunAzimuthAngles", "sunZenithAngles", "viewAzimuthMean", "viewZenithMean"]}],
+    output: [
+        {id: "TrueColor", bands: 3, sampleType: SampleType.FLOAT32},
+        {id: "AOT", bands: 1, sampleType: SampleType.UINT16},
+        {id: "SCL", bands: 1, sampleType: SampleType.UINT8},
+        {id: "SNW", bands: 1, sampleType: SampleType.UINT8},
+        {id: "CLD", bands: 1, sampleType: SampleType.UINT8},
+        {id: "SAA", bands: 1, sampleType: SampleType.FLOAT32},
+        {id: "SZA", bands: 1, sampleType: SampleType.FLOAT32},
+        {id: "VAM", bands: 1, sampleType: SampleType.FLOAT32},
+        {id: "VZM", bands: 1, sampleType: SampleType.FLOAT32}
+    ]
+  }
+}
 
-        function evaluatePixel(sample) {
-            return [sample.B04, sample.B03, sample.B02];
-        }
+function evaluatePixel(sample) {
+    var truecolor = [sample.B04, sample.B03, sample.B02]
+    var aot = [sample.AOT]
+    var scl = [sample.SCL]
+    var snw = [sample.SNW]
+    var cld = [sample.CLD]
+    var saa = [sample.sunAzimuthAngles]
+    var sza = [sample.sunZenithAngles]
+    var vam = [sample.viewAzimuthMean]
+    var vzm = [sample.viewZenithMean]
+
+    return {
+        TrueColor: truecolor,
+        AOT: aot,
+        SCL: scl,
+        SNW: snw,
+        CLD: cld,
+        SAA: saa,
+        SZA: sza,
+        VAM: vam,
+        VZM: vzm
+    }
+
+}
     """
 
     request = {
@@ -67,21 +94,71 @@ def sync_sentinel_hub_s2(north,south,east,west,temporal_extent_start,temporal_ex
         "height": 1000,
         "responses": [
             {
-                "identifier": "default",
-                "format": {"type": "image/tiff"},
+                "identifier": "TrueColor",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "AOT",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "SCL",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "SNW",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "CLD",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "SAA",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "SZA",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "VAM",
+                "format": {
+                    "type": "image/tiff"
+                }
+            },
+            {
+                "identifier": "VZM",
+                "format": {
+                    "type": "image/tiff"
+                }
             }
         ],
     },
-    "evalscript": evalscript_true_color,
+    "evalscript": evalscript,
 }
 
     url = "https://sh.dataspace.copernicus.eu/api/v1/process"
-    response = oauth.post(url, json=request, headers={"Accept": "image/tiff"})
+    response = oauth.post(url, json=request, headers={"Accept": "application/tar"})
     # All requests using this session will have an access token automatically added
     print(response.content)
 
     if response.status_code == 200:
-        local_file_path= "test.tif"
+        local_file_path= "sentinel2.tar"
         with open(local_file_path, "wb") as file:
             file.write(response.content)
             print("Wrote to file: {}".format(local_file_path))
