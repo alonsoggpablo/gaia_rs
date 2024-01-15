@@ -29,8 +29,8 @@ def run_batch_job_process_datacube(cube_dict,datacube_id):
 
     if cube_dict['category'] == 'SAR':
         cube = cube.sar_backscatter(coefficient="sigma0-ellipsoid")
-
-    job = cube.execute_batch(output_format='netcdf', format='netcdf')
+    job_options = {"driver-memory": "10G", }
+    job = cube.execute_batch(output_format='netcdf', format='netcdf', job_options=job_options)
     job_id = job.job_id
     download_copernicus_results.delay(job_id, datacube_id)
 
