@@ -13,8 +13,7 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -87,15 +86,16 @@ WSGI_APPLICATION = 'gaia_rs.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'postgres',
-         'OPTIONS': {
-            'options': '-c search_path=public'
+        'NAME': os.getenv('DJANGO_DB'),
+        'OPTIONS': {
+            'options': '-c search_path={}'.format(os.getenv('POSTGRES_NAME', 'public'))
         },
         'HOST': 'localhost',
         'PORT': '5432',
         'USER': 'postgres',
         'PASSWORD': 'laura10',
-    }}
+    }
+}
 
 
 
@@ -133,8 +133,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_URL = '/static/'
+STATIC_ROOT = '/gaia_rs/static'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = '/gaia_rs/media'
+
+#STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 
 # Default primary key field type
@@ -142,9 +146,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-MEDIA_URL= '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Celery Configuration Options
 CELERY_TIMEZONE = "Europe/Madrid"

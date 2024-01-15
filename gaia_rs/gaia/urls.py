@@ -2,6 +2,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from django.contrib.auth.views import LoginView,LogoutView
 
 
 app_name = 'gaia'
@@ -21,5 +22,8 @@ urlpatterns = [
     path('delete_geoimage/<int:pk>/', views.delete_geoimage, name='delete_geoimage'),
     path('delete_datacube/<int:pk>/', views.delete_datacube, name='delete_datacube'),
     path('raster_file_download/<int:pk>/', views.raster_file_download, name='raster_file_download'),
+    path('login/', LoginView.as_view(template_name='login.html'), name='login'),
+    path('logout/', LogoutView.as_view(next_page='/'), name='logout'),
+
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

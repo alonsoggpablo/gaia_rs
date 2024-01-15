@@ -57,6 +57,15 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
+                {% if request.user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{%url 'gaia:logout'%}">{{ request.user.username }} - Logout</a>
+                {% endif %}
+                {% if not request.user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{%url 'gaia:login'%}">Login</a>
+                </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link" href="{%url 'gaia:index'%}">Datacubes</a>
                 </li>
@@ -66,12 +75,17 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{%url 'gaia:dataproducts'%}">DataProducts</a>
                 </li>
+                {% if request.user.is_superuser %}
                 <li class="nav-item">
                     <a class="nav-link" href="https://openeo.dataspace.copernicus.eu" target="_blank">Copernicus Batch Jobs</a>
                 </li>
+                {% endif %}
+
+                {% if request.user.is_superuser %}
                  <li class="nav-item">
                     <a class="nav-link" href="/admin">Admin</a>
                 </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link" href="mailto:alonsogpablo@gmail.com">Contact</a>
                 </li>
