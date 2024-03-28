@@ -1,6 +1,14 @@
 # gaia_rs
 
+## Demo Site 
+
+http://82.223.22.214
+
 ## Copernicus ESA Satellite Image Analysis
+
+This is an Open Source project under MIT license. You can clone and use it freely.
+
+You can sponsor me at https://github.com/sponsors/alonsoggpablo
 
 ### Introduction:
 https://github.com/alonsoggpablo/gaia_rs/wiki/Introduction
