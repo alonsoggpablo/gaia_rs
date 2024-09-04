@@ -60,6 +60,14 @@ RUN wget http://download.osgeo.org/proj/proj-8.0.0.tar.gz && \
     cmake --build . --target install && \
     ldconfig
 
+# Remove existing CMake if installed
+RUN apt-get remove -y cmake
+
+# Download and install the latest version of CMake
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh && \
+    chmod +x cmake-3.21.3-linux-x86_64.sh && \
+    ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
+
 # Install libgeotiff
 RUN wget http://download.osgeo.org/geotiff/libgeotiff/libgeotiff-1.6.0.tar.gz && \
   tar xzf libgeotiff-1.6.0.tar.gz && \
@@ -69,12 +77,22 @@ RUN wget http://download.osgeo.org/geotiff/libgeotiff/libgeotiff-1.6.0.tar.gz &&
   make install && \
   ldconfig
 
+# Remove existing ZSTD library if installed
+RUN apt-get remove -y libzstd-dev
+
+# Download and install the latest version of ZSTD
+RUN wget https://github.com/facebook/zstd/releases/download/v1.5.2/zstd-1.5.2.tar.gz && \
+    tar xzf zstd-1.5.2.tar.gz && \
+    cd zstd-1.5.2 && \
+    make && \
+    make install
+    
 # Download GDAL
-RUN wget http://download.osgeo.org/gdal/3.8.1/gdal-3.8.1.tar.gz
+RUN wget http://download.osgeo.org/gdal/3.9.2/gdal-3.9.2.tar.gz
 
 # Extract GDAL and install it
-RUN tar xzf gdal-3.8.1.tar.gz && \
-    cd gdal-3.8.1 && \
+RUN tar xzf gdal-3.9.2.tar.gz && \
+    cd gdal-3.9.2 && \
     mkdir build && \
     cd build && \
     cmake .. && \

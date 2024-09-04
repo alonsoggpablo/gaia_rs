@@ -11,3 +11,19 @@ gaia_rs/gaia_rs/settings.py
 
 /gaia_rs/media/ncdf/openEO_7K9jY9T.nc.aux.xml
 /gaia_rs/media/ncdf/openEO.nc.aux.xml
+/gaia_rs/cache/
+/gaia_rs/config/
+/gaia_rs/media/
+/gaia_rs/media - ./
+/gaia_rs/sentinel2.tar
+/gaia_rs/test.tif
+/gaia_rs/qgis/
+/gaia_rs/sentinel2/
+/.DS_Store
+/.idea/
+/gaia_rs/.DS_Store
+/gaia_rs/__pycache__/
+/gaia_rs/gaia/.DS_Store
+/gaia_rs/gaia/__pycache__/
+/gaia_rs/gaia/templates/.DS_Store
+/gaia_rs/gaia_rs/__pycache__/
