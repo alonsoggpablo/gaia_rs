@@ -94,9 +94,5 @@ wcwidth==0.2.6
 wrapt==1.15.0
 xarray==2023.1.0
 zipp==3.16.2
-<<<<<<< HEAD
-GDAL==3.8.1
-=======
 GDAL==3.9.2
 
->>>>>>> b6bfd53 (Correcciones en Dockerfile)
